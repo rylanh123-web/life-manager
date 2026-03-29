@@ -229,26 +229,15 @@
     const groceryListEl = document.getElementById("groceryList");
 
     let currentPlan = null;
+    let currentLoadingMode = null;
+    let currentLoadingDay = null;
 
     function setStatus(message) {
       statusEl.textContent = message || "";
     }
 
-    function setLoading(isLoading, mode = "generate") {
-      generateBtn.disabled = isLoading;
-      regenerateMealsBtn.disabled = isLoading || !currentPlan;
-
-      if (isLoading && mode === "generate") {
-        generateBtn.textContent = "Generating...";
-      } else {
-        generateBtn.textContent = "Generate Plan";
-      }
-
-      if (isLoading && mode === "regenerateMeals") {
-        regenerateMealsBtn.textContent = "Regenerating Meals...";
-      } else {
-        regenerateMealsBtn.textContent = "Regenerate Meals";
-      }
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
     function escapeHtml(str) {
@@ -284,12 +273,17 @@
       );
     }
 
+    function isRegeneratingDay(day) {
+      return currentLoadingMode === "regenerateDay" && currentLoadingDay === day;
+    }
+
     function renderPlan(plan) {
       currentPlan = plan;
       daysGridEl.innerHTML = "";
 
       DAYS.forEach((day) => {
         const dayData = plan[day] || { tasks: [], meals: [], busy: false };
+        const regeneratingThisDay = isRegeneratingDay(day);
 
         const card = document.createElement("div");
         card.className = "day-card";
@@ -307,20 +301,24 @@
           <div class="meals-list">${renderList(dayData.meals)}</div>
 
           <div class="card-actions">
-            <button class="secondary-btn small-btn edit-toggle-btn">Edit Day</button>
+            <button class="secondary-btn small-btn edit-toggle-btn" ${currentLoadingMode ? "disabled" : ""}>Edit Day</button>
+            <button class="secondary-btn small-btn regenerate-day-btn" ${currentLoadingMode ? "disabled" : ""}>
+              ${regeneratingThisDay ? "Regenerating..." : "Regenerate Day"}
+            </button>
           </div>
 
           <div class="edit-box hidden">
             <textarea class="edit-textarea">${escapeHtml(buildEditText(dayData))}</textarea>
             <div class="button-row">
-              <button class="primary-btn small-btn save-day-btn">Save Day</button>
-              <button class="secondary-btn small-btn cancel-day-btn">Cancel</button>
+              <button class="primary-btn small-btn save-day-btn" ${currentLoadingMode ? "disabled" : ""}>Save Day</button>
+              <button class="secondary-btn small-btn cancel-day-btn" ${currentLoadingMode ? "disabled" : ""}>Cancel</button>
             </div>
           </div>
         `;
 
         const editBox = card.querySelector(".edit-box");
         const editToggleBtn = card.querySelector(".edit-toggle-btn");
+        const regenerateDayBtn = card.querySelector(".regenerate-day-btn");
         const cancelDayBtn = card.querySelector(".cancel-day-btn");
         const saveDayBtn = card.querySelector(".save-day-btn");
         const editTextarea = card.querySelector(".edit-textarea");
@@ -351,16 +349,31 @@
           }
         });
 
+        regenerateDayBtn.addEventListener("click", () => {
+          regenerateDay(day);
+        });
+
         daysGridEl.appendChild(card);
       });
 
       groceryListEl.innerHTML = renderList(plan.groceryList || []);
       planWrapperEl.classList.remove("hidden");
-      regenerateMealsBtn.disabled = false;
+      regenerateMealsBtn.disabled = !!currentLoadingMode || !currentPlan;
     }
 
-    function capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
+    function setLoading(mode = null, day = null) {
+      currentLoadingMode = mode;
+      currentLoadingDay = day;
+
+      generateBtn.disabled = !!mode;
+      regenerateMealsBtn.disabled = !!mode || !currentPlan;
+
+      generateBtn.textContent = mode === "generate" ? "Generating..." : "Generate Plan";
+      regenerateMealsBtn.textContent = mode === "regenerateMeals" ? "Regenerating Meals..." : "Regenerate Meals";
+
+      if (currentPlan) {
+        renderPlan(currentPlan);
+      }
     }
 
     async function generatePlan() {
@@ -372,7 +385,7 @@
       }
 
       try {
-        setLoading(true, "generate");
+        setLoading("generate");
         setStatus("Building your week...");
 
         const response = await fetch("/api/plan", {
@@ -392,13 +405,15 @@
           throw new Error(data?.details || data?.error || "Failed to generate plan");
         }
 
+        currentLoadingMode = null;
+        currentLoadingDay = null;
         renderPlan(data);
         setStatus("Plan generated.");
       } catch (error) {
         console.error(error);
         setStatus(error.message || "Something went wrong.");
       } finally {
-        setLoading(false);
+        setLoading(null, null);
       }
     }
 
@@ -416,7 +431,7 @@
       }
 
       try {
-        setLoading(true, "regenerateMeals");
+        setLoading("regenerateMeals");
         setStatus("Refreshing meals and grocery list...");
 
         const response = await fetch("/api/plan", {
@@ -442,13 +457,68 @@
           ...data
         };
 
+        currentLoadingMode = null;
+        currentLoadingDay = null;
         renderPlan(currentPlan);
         setStatus("Meals regenerated. Tasks stayed the same.");
       } catch (error) {
         console.error(error);
         setStatus(error.message || "Something went wrong.");
       } finally {
-        setLoading(false);
+        setLoading(null, null);
+      }
+    }
+
+    async function regenerateDay(day) {
+      const brainDump = brainDumpEl.value.trim();
+
+      if (!brainDump) {
+        setStatus("Add your brain dump first.");
+        return;
+      }
+
+      if (!currentPlan) {
+        setStatus("Generate a plan first.");
+        return;
+      }
+
+      try {
+        setLoading("regenerateDay", day);
+        setStatus(`Refreshing ${capitalize(day)}...`);
+
+        const response = await fetch("/api/plan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            mode: "regenerateDay",
+            brainDump,
+            existingPlan: currentPlan,
+            targetDay: day
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.details || data?.error || `Failed to regenerate ${day}`);
+        }
+
+        currentPlan = {
+          ...currentPlan,
+          ...data
+        };
+
+        currentLoadingMode = null;
+        currentLoadingDay = null;
+        renderPlan(currentPlan);
+        setStatus(`${capitalize(day)} regenerated. Other days stayed the same.`);
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || "Something went wrong.");
+      } finally {
+        setLoading(null, null);
       }
     }
 
