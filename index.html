@@ -5,81 +5,82 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Life Manager</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
       margin: 0;
-      padding: 20px;
-      color: #111827;
+      font-family: Arial, sans-serif;
+      background: #f7f7fb;
+      color: #111;
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
+      padding: 24px;
     }
 
     h1 {
-      font-size: 48px;
-      margin-bottom: 20px;
+      margin-top: 0;
+      font-size: 32px;
     }
 
-    .input-card,
-    .grocery-card,
-    .modal-card {
-      background: white;
-      border-radius: 14px;
+    .panel {
+      background: #fff;
+      border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
       margin-bottom: 20px;
     }
 
     textarea {
       width: 100%;
-      min-height: 180px;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
+      min-height: 160px;
       padding: 14px;
-      font-size: 18px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      font-size: 16px;
       resize: vertical;
-      box-sizing: border-box;
+      margin-bottom: 16px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     button {
-      background: #2563eb;
-      color: white;
       border: none;
       border-radius: 10px;
-      padding: 14px 22px;
-      font-size: 18px;
+      padding: 12px 18px;
+      font-size: 15px;
+      font-weight: 600;
       cursor: pointer;
-      margin-top: 16px;
     }
 
-    button:hover {
-      background: #1d4ed8;
+    .primary-btn {
+      background: #111;
+      color: #fff;
     }
 
     .secondary-btn {
-      background: #e5e7eb;
-      color: #111827;
-      margin-left: 10px;
+      background: #ececf3;
+      color: #111;
     }
 
-    .secondary-btn:hover {
-      background: #d1d5db;
-    }
-
-    .small-btn {
-      font-size: 14px;
-      padding: 10px 14px;
-      margin-top: 12px;
-      width: 100%;
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
     .status {
-      margin-top: 14px;
-      font-size: 16px;
-      color: #374151;
+      margin-top: 12px;
+      min-height: 20px;
+      font-size: 14px;
+      color: #555;
     }
 
     .days-grid {
@@ -90,53 +91,42 @@
     }
 
     .day-card {
-      background: white;
-      border-radius: 14px;
+      background: #fff;
+      border-radius: 16px;
       padding: 18px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-
-    .day-card.busy {
-      border: 2px solid #f59e0b;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     }
 
     .day-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 12px;
       margin-bottom: 12px;
-      gap: 10px;
     }
 
     .day-title {
-      font-size: 22px;
-      font-weight: bold;
-      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: capitalize;
     }
 
-    .badge {
+    .busy-badge {
       font-size: 12px;
-      font-weight: bold;
-      padding: 6px 10px;
+      font-weight: 700;
       border-radius: 999px;
-      background: #e5e7eb;
-      color: #374151;
-      white-space: nowrap;
+      padding: 6px 10px;
+      background: #eef2ff;
+      color: #3730a3;
     }
 
-    .badge.busy {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .section-title {
-      font-size: 14px;
-      font-weight: bold;
-      color: #6b7280;
-      margin-top: 14px;
-      margin-bottom: 8px;
+    .section-label {
+      margin: 14px 0 8px;
+      font-size: 13px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      color: #666;
     }
 
     ul {
@@ -149,300 +139,321 @@
       line-height: 1.4;
     }
 
-    .grocery-list {
-      columns: 2;
-      padding-left: 18px;
+    .empty {
+      color: #888;
+      font-style: italic;
+    }
+
+    .grocery-panel {
+      margin-top: 20px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     }
 
     .hidden {
       display: none;
     }
 
-    .error {
-      color: #b91c1c;
-      background: #fee2e2;
-      padding: 12px;
-      border-radius: 10px;
-      margin-top: 14px;
-      white-space: pre-wrap;
-    }
-
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.45);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      z-index: 1000;
-    }
-
-    .modal-overlay.show {
-      display: flex;
-    }
-
-    .modal-card {
-      width: 100%;
-      max-width: 700px;
-      margin: 0;
-    }
-
-    .modal-card h2 {
-      margin-top: 0;
-      margin-bottom: 16px;
-    }
-
-    .modal-card label {
-      display: block;
-      font-weight: bold;
-      margin: 12px 0 8px;
-      color: #374151;
-    }
-
-    .modal-card textarea {
-      min-height: 120px;
-      font-size: 16px;
-    }
-
-    .busy-toggle {
+    .edit-box {
       margin-top: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 16px;
+      border-top: 1px solid #eee;
+      padding-top: 12px;
     }
 
-    @media (max-width: 700px) {
-      h1 {
-        font-size: 36px;
-      }
+    .edit-box textarea {
+      min-height: 120px;
+      margin-bottom: 10px;
+    }
 
-      .grocery-list {
-        columns: 1;
-      }
+    .small-btn {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🗓️ Life Manager</h1>
+    <div class="panel">
+      <h1>Life Manager</h1>
+      <textarea
+        id="brainDump"
+        placeholder="Dump your week here... work schedule, appointments, gym, food preferences, errands, events, everything."
+      ></textarea>
 
-    <div class="input-card">
-      <textarea id="input" placeholder="Example:
-- Work 9–5 Mon–Fri
-- Gym 3x
-- Need groceries
-- Dinner Friday with friend"></textarea>
-      <button onclick="generate()">Generate Plan</button>
-      <div class="status" id="status"></div>
-      <div class="error hidden" id="error"></div>
-    </div>
-
-    <div id="results" class="hidden">
-      <div class="days-grid" id="daysGrid"></div>
-
-      <div class="grocery-card">
-        <div class="day-title" style="margin-bottom: 12px;">🛒 Grocery List</div>
-        <ul class="grocery-list" id="groceryList"></ul>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="editModal">
-    <div class="modal-card">
-      <h2 id="editTitle">Edit Day</h2>
-
-      <label for="editTasks">Tasks (one per line)</label>
-      <textarea id="editTasks"></textarea>
-
-      <label for="editMeals">Meals (one per line)</label>
-      <textarea id="editMeals"></textarea>
-
-      <div class="busy-toggle">
-        <input type="checkbox" id="editBusy" />
-        <label for="editBusy" style="margin: 0;">Mark as busy</label>
+      <div class="button-row">
+        <button id="generateBtn" class="primary-btn">Generate Plan</button>
+        <button id="regenerateMealsBtn" class="secondary-btn" disabled>Regenerate Meals</button>
       </div>
 
-      <button onclick="saveDayEdits()">Save Day</button>
-      <button class="secondary-btn" onclick="closeEditModal()">Cancel</button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div id="planWrapper" class="hidden">
+      <div id="daysGrid" class="days-grid"></div>
+
+      <div class="grocery-panel">
+        <div class="day-header">
+          <div class="day-title">Grocery List</div>
+        </div>
+        <div id="groceryList"></div>
+      </div>
     </div>
   </div>
 
   <script>
+    const DAYS = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday"
+    ];
+
+    const brainDumpEl = document.getElementById("brainDump");
+    const generateBtn = document.getElementById("generateBtn");
+    const regenerateMealsBtn = document.getElementById("regenerateMealsBtn");
+    const statusEl = document.getElementById("status");
+    const planWrapperEl = document.getElementById("planWrapper");
+    const daysGridEl = document.getElementById("daysGrid");
+    const groceryListEl = document.getElementById("groceryList");
+
     let currentPlan = null;
-    let editingDay = null;
 
-    async function generate() {
-      const input = document.getElementById("input").value.trim();
-      const status = document.getElementById("status");
-      const errorBox = document.getElementById("error");
-      const results = document.getElementById("results");
+    function setStatus(message) {
+      statusEl.textContent = message || "";
+    }
 
-      errorBox.classList.add("hidden");
-      errorBox.textContent = "";
-      status.textContent = "Generating your weekly plan...";
-      results.classList.add("hidden");
+    function setLoading(isLoading, mode = "generate") {
+      generateBtn.disabled = isLoading;
+      regenerateMealsBtn.disabled = isLoading || !currentPlan;
+
+      if (isLoading && mode === "generate") {
+        generateBtn.textContent = "Generating...";
+      } else {
+        generateBtn.textContent = "Generate Plan";
+      }
+
+      if (isLoading && mode === "regenerateMeals") {
+        regenerateMealsBtn.textContent = "Regenerating Meals...";
+      } else {
+        regenerateMealsBtn.textContent = "Regenerate Meals";
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderList(items) {
+      if (!items || !items.length) {
+        return '<div class="empty">None</div>';
+      }
+
+      return `
+        <ul>
+          ${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ul>
+      `;
+    }
+
+    function buildEditText(dayData) {
+      return JSON.stringify(
+        {
+          tasks: dayData.tasks,
+          meals: dayData.meals,
+          busy: dayData.busy
+        },
+        null,
+        2
+      );
+    }
+
+    function renderPlan(plan) {
+      currentPlan = plan;
+      daysGridEl.innerHTML = "";
+
+      DAYS.forEach((day) => {
+        const dayData = plan[day] || { tasks: [], meals: [], busy: false };
+
+        const card = document.createElement("div");
+        card.className = "day-card";
+
+        card.innerHTML = `
+          <div class="day-header">
+            <div class="day-title">${day}</div>
+            <div class="busy-badge">${dayData.busy ? "Busy" : "Lighter"}</div>
+          </div>
+
+          <div class="section-label">Tasks</div>
+          <div class="tasks-list">${renderList(dayData.tasks)}</div>
+
+          <div class="section-label">Meals</div>
+          <div class="meals-list">${renderList(dayData.meals)}</div>
+
+          <div class="card-actions">
+            <button class="secondary-btn small-btn edit-toggle-btn">Edit Day</button>
+          </div>
+
+          <div class="edit-box hidden">
+            <textarea class="edit-textarea">${escapeHtml(buildEditText(dayData))}</textarea>
+            <div class="button-row">
+              <button class="primary-btn small-btn save-day-btn">Save Day</button>
+              <button class="secondary-btn small-btn cancel-day-btn">Cancel</button>
+            </div>
+          </div>
+        `;
+
+        const editBox = card.querySelector(".edit-box");
+        const editToggleBtn = card.querySelector(".edit-toggle-btn");
+        const cancelDayBtn = card.querySelector(".cancel-day-btn");
+        const saveDayBtn = card.querySelector(".save-day-btn");
+        const editTextarea = card.querySelector(".edit-textarea");
+
+        editToggleBtn.addEventListener("click", () => {
+          editBox.classList.toggle("hidden");
+        });
+
+        cancelDayBtn.addEventListener("click", () => {
+          editTextarea.value = buildEditText(currentPlan[day]);
+          editBox.classList.add("hidden");
+        });
+
+        saveDayBtn.addEventListener("click", () => {
+          try {
+            const parsed = JSON.parse(editTextarea.value);
+
+            currentPlan[day] = {
+              tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+              meals: Array.isArray(parsed.meals) ? parsed.meals : [],
+              busy: Boolean(parsed.busy)
+            };
+
+            renderPlan(currentPlan);
+            setStatus(`${capitalize(day)} updated.`);
+          } catch (error) {
+            setStatus(`Invalid JSON for ${day}. Keep this format: { "tasks": [], "meals": [], "busy": true }`);
+          }
+        });
+
+        daysGridEl.appendChild(card);
+      });
+
+      groceryListEl.innerHTML = renderList(plan.groceryList || []);
+      planWrapperEl.classList.remove("hidden");
+      regenerateMealsBtn.disabled = false;
+    }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    async function generatePlan() {
+      const brainDump = brainDumpEl.value.trim();
+
+      if (!brainDump) {
+        setStatus("Add your brain dump first.");
+        return;
+      }
 
       try {
-        const res = await fetch("/api/plan", {
+        setLoading(true, "generate");
+        setStatus("Building your week...");
+
+        const response = await fetch("/api/plan", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ brainDump: input })
+          body: JSON.stringify({
+            mode: "generate",
+            brainDump
+          })
         });
 
-        const data = await res.json();
+        const data = await response.json();
 
-        if (!res.ok || data.error) {
-          throw new Error(data.error || "Something went wrong");
+        if (!response.ok) {
+          throw new Error(data?.details || data?.error || "Failed to generate plan");
         }
 
-        currentPlan = data;
-        localStorage.setItem("lifeManagerPlan", JSON.stringify(currentPlan));
+        renderPlan(data);
+        setStatus("Plan generated.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function regenerateMeals() {
+      const brainDump = brainDumpEl.value.trim();
+
+      if (!brainDump) {
+        setStatus("Add your brain dump first.");
+        return;
+      }
+
+      if (!currentPlan) {
+        setStatus("Generate a plan first.");
+        return;
+      }
+
+      try {
+        setLoading(true, "regenerateMeals");
+        setStatus("Refreshing meals and grocery list...");
+
+        const response = await fetch("/api/plan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            mode: "regenerateMeals",
+            brainDump,
+            existingPlan: currentPlan
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.details || data?.error || "Failed to regenerate meals");
+        }
+
+        currentPlan = {
+          ...currentPlan,
+          ...data
+        };
 
         renderPlan(currentPlan);
-        status.textContent = "Plan generated successfully.";
-        results.classList.remove("hidden");
-      } catch (err) {
-        status.textContent = "";
-        errorBox.textContent = err.message || "Something went wrong.";
-        errorBox.classList.remove("hidden");
+        setStatus("Meals regenerated. Tasks stayed the same.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || "Something went wrong.");
+      } finally {
+        setLoading(false);
       }
     }
 
-    function renderPlan(plan) {
-      const daysGrid = document.getElementById("daysGrid");
-      const groceryList = document.getElementById("groceryList");
-
-      daysGrid.innerHTML = "";
-      groceryList.innerHTML = "";
-
-      const days = [
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-        "sunday"
-      ];
-
-      days.forEach(day => {
-        const dayData = plan[day] || { tasks: [], meals: [], busy: false };
-        const card = document.createElement("div");
-        card.className = "day-card" + (dayData.busy ? " busy" : "");
-
-        const title = day.charAt(0).toUpperCase() + day.slice(1);
-
-        card.innerHTML = `
-          <div class="day-header">
-            <h2 class="day-title">${title}</h2>
-            <span class="badge ${dayData.busy ? "busy" : ""}">
-              ${dayData.busy ? "Busy" : "Light"}
-            </span>
-          </div>
-
-          <div class="section-title">Tasks</div>
-          ${
-            dayData.tasks && dayData.tasks.length
-              ? `<ul>${dayData.tasks.map(task => `<li>${escapeHtml(task)}</li>`).join("")}</ul>`
-              : `<p>No tasks</p>`
-          }
-
-          <div class="section-title">Meals</div>
-          ${
-            dayData.meals && dayData.meals.length
-              ? `<ul>${dayData.meals.map(meal => `<li>${escapeHtml(meal)}</li>`).join("")}</ul>`
-              : `<p>No meals</p>`
-          }
-
-          <button class="small-btn secondary-btn" onclick="openEditModal('${day}')">Edit Day</button>
-        `;
-
-        daysGrid.appendChild(card);
-      });
-
-      const groceries = plan.groceryList || [];
-      if (groceries.length) {
-        groceries.forEach(item => {
-          const li = document.createElement("li");
-          li.textContent = item;
-          groceryList.appendChild(li);
-        });
-      } else {
-        const li = document.createElement("li");
-        li.textContent = "No groceries listed";
-        groceryList.appendChild(li);
-      }
-    }
-
-    function openEditModal(day) {
-      if (!currentPlan) return;
-
-      editingDay = day;
-      const title = day.charAt(0).toUpperCase() + day.slice(1);
-      const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
-
-      document.getElementById("editTitle").textContent = `Edit ${title}`;
-      document.getElementById("editTasks").value = (dayData.tasks || []).join("\n");
-      document.getElementById("editMeals").value = (dayData.meals || []).join("\n");
-      document.getElementById("editBusy").checked = !!dayData.busy;
-
-      document.getElementById("editModal").classList.add("show");
-    }
-
-    function closeEditModal() {
-      editingDay = null;
-      document.getElementById("editModal").classList.remove("show");
-    }
-
-    function saveDayEdits() {
-      if (!currentPlan || !editingDay) return;
-
-      const tasks = document.getElementById("editTasks").value
-        .split("\n")
-        .map(x => x.trim())
-        .filter(Boolean);
-
-      const meals = document.getElementById("editMeals").value
-        .split("\n")
-        .map(x => x.trim())
-        .filter(Boolean);
-
-      const busy = document.getElementById("editBusy").checked;
-
-      currentPlan[editingDay] = {
-        tasks,
-        meals,
-        busy
-      };
-
-      localStorage.setItem("lifeManagerPlan", JSON.stringify(currentPlan));
-      renderPlan(currentPlan);
-      closeEditModal();
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement("div");
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    window.addEventListener("load", () => {
-      const savedPlan = localStorage.getItem("lifeManagerPlan");
-      if (savedPlan) {
-        try {
-          currentPlan = JSON.parse(savedPlan);
-          renderPlan(currentPlan);
-          document.getElementById("results").classList.remove("hidden");
-          document.getElementById("status").textContent = "Loaded your saved plan.";
-        } catch {
-          localStorage.removeItem("lifeManagerPlan");
-        }
-      }
-    });
+    generateBtn.addEventListener("click", generatePlan);
+    regenerateMealsBtn.addEventListener("click", regenerateMeals);
   </script>
 </body>
 </html>
