@@ -64,9 +64,18 @@ Guidelines:
 
     const result = data.choices?.[0]?.message?.content;
 
-    return res.status(200).json({
-      plan: result || "No response from AI"
-    });
+    let parsed;
+
+    try {
+      parsed = JSON.parse(result);
+    } catch (e) {
+      return res.status(500).json({
+        error: "Failed to parse AI response",
+        raw: result
+      });
+    }
+
+    return res.status(200).json(parsed);
 
   } catch (error) {
     return res.status(500).json({ error: error.message });
