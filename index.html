@@ -5,589 +5,381 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Life Manager</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    :root {
-      --bg: #f7f7fb;
-      --card: #ffffff;
-      --text: #111111;
-      --muted: #666666;
-      --border: #e8e8ef;
-      --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-      --primary: #111111;
-      --primaryText: #ffffff;
-      --soft: #ececf3;
-      --busyBg: #eef2ff;
-      --busyText: #3730a3;
-      --lightBg: #f4f4f7;
-      --lightText: #555555;
-      --warningBg: #fff7ed;
-      --warningText: #9a3412;
-      --taskBg: #f8fafc;
-      --mealBg: #fffaf0;
-      --toastBg: rgba(17, 17, 17, 0.92);
-      --toastText: #ffffff;
-    }
-
     body {
-      margin: 0;
       font-family: Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: #f5f5f7;
+      padding: 20px;
+      margin: 0;
+      color: #111;
     }
 
     .container {
-      max-width: 1280px;
+      max-width: 1000px;
       margin: 0 auto;
-      padding: 24px;
-    }
-
-    .hero {
-      background: linear-gradient(180deg, #ffffff 0%, #fafafe 100%);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: var(--shadow);
-      margin-bottom: 22px;
-      border: 1px solid var(--border);
     }
 
     h1 {
-      margin: 0 0 8px;
-      font-size: 34px;
-      line-height: 1.1;
+      margin-top: 0;
+      margin-bottom: 10px;
     }
 
     .subtext {
-      margin: 0 0 18px;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.5;
-      max-width: 760px;
+      color: #555;
+      margin-bottom: 16px;
+      line-height: 1.45;
+    }
+
+    textarea,
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+      background: white;
     }
 
     textarea {
-      width: 100%;
-      min-height: 170px;
-      padding: 16px;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      font-size: 16px;
-      line-height: 1.5;
+      min-height: 140px;
       resize: vertical;
-      margin-bottom: 16px;
-      background: #fff;
-      color: var(--text);
     }
 
-    textarea:focus,
-    button:focus,
-    select:focus {
-      outline: 2px solid #c7d2fe;
-      outline-offset: 2px;
-    }
-
-    .toolbar {
+    .button-row {
       display: flex;
-      gap: 12px;
+      gap: 8px;
       flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .toolbar-left,
-    .toolbar-right {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    button,
-    select {
-      border: none;
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 700;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
-    select {
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-      cursor: pointer;
-    }
-
-    .primary-btn {
-      background: var(--primary);
-      color: var(--primaryText);
-    }
-
-    .secondary-btn {
-      background: var(--soft);
-      color: var(--text);
-    }
-
-    .ghost-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
-    }
-
-    button:disabled,
-    select:disabled,
-    textarea:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
-    .status-bar {
-      margin-top: 14px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-      min-height: 24px;
-    }
-
-    .status-pill {
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: var(--soft);
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .warning-banner {
-      display: none;
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: var(--warningBg);
-      color: var(--warningText);
-      font-size: 14px;
-      line-height: 1.45;
-      border: 1px solid #fed7aa;
-      font-weight: 700;
-    }
-
-    .warning-banner.show {
-      display: block;
-    }
-
-    .plan-wrapper.hidden {
-      display: none;
-    }
-
-    .plan-topbar {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .plan-summary {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .summary-chip {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 13px;
-      color: var(--muted);
-      box-shadow: var(--shadow);
-    }
-
-    .days-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-      gap: 16px;
-    }
-
-    .day-card,
-    .grocery-panel {
-      background: var(--card);
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-    }
-
-    .day-card.loading {
-      opacity: 0.72;
-    }
-
-    .day-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
       margin-bottom: 14px;
     }
 
-    .day-title-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .day-title {
-      font-size: 21px;
-      font-weight: 800;
-      text-transform: capitalize;
-    }
-
-    .day-subtitle {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .busy-badge {
-      font-size: 12px;
-      font-weight: 800;
-      border-radius: 999px;
-      padding: 7px 10px;
-      white-space: nowrap;
-    }
-
-    .busy-badge.busy {
-      background: var(--busyBg);
-      color: var(--busyText);
-    }
-
-    .busy-badge.light {
-      background: var(--lightBg);
-      color: var(--lightText);
-    }
-
-    .section-block {
-      margin-top: 14px;
-      border-radius: 14px;
-      padding: 12px;
-      border: 1px solid var(--border);
-    }
-
-    .section-block.tasks-block {
-      background: var(--taskBg);
-    }
-
-    .section-block.meals-block {
-      background: var(--mealBg);
-    }
-
-    .section-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .section-label {
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--muted);
-    }
-
-    .section-count {
-      font-size: 12px;
-      color: var(--muted);
+    button {
+      padding: 10px 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
       font-weight: 700;
     }
 
+    .primary-btn {
+      background: #111;
+      color: white;
+    }
+
+    .secondary-btn {
+      background: #ececf3;
+      color: #111;
+    }
+
+    .ghost-btn {
+      background: white;
+      color: #111;
+      border: 1px solid #ddd;
+    }
+
+    button:disabled,
+    textarea:disabled,
+    input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-bottom: 18px;
+      font-size: 14px;
+      color: #555;
+      min-height: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 14px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+
+    .card h3 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      text-transform: capitalize;
+    }
+
+    .busy-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+      background: #ececf3;
+      color: #333;
+    }
+
+    .busy-badge.busy {
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    .section-title {
+      margin: 20px 0 10px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .mini-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #666;
+      font-weight: 700;
+      margin-top: 10px;
+      margin-bottom: 6px;
+    }
+
     ul {
-      margin: 0;
+      margin-top: 8px;
+      margin-bottom: 0;
       padding-left: 18px;
     }
 
     li {
-      margin-bottom: 7px;
-      line-height: 1.45;
+      margin-bottom: 6px;
+      line-height: 1.4;
     }
 
-    .empty {
-      color: #8a8a96;
-      font-style: italic;
-      font-size: 14px;
-    }
-
-    .card-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 14px;
-    }
-
-    .small-btn {
-      padding: 10px 12px;
-      font-size: 13px;
-      font-weight: 800;
-    }
-
-    .action-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-      width: 100%;
-    }
-
-    .regen-select {
-      flex: 1;
-      min-width: 170px;
-      padding: 10px 12px;
-      font-size: 13px;
-      font-weight: 700;
-      border-radius: 12px;
-    }
-
-    .edit-box {
-      margin-top: 14px;
-      border-top: 1px solid var(--border);
-      padding-top: 14px;
-    }
-
-    .edit-box.hidden {
+    .fallback-warning {
+      background: #fff3cd;
+      color: #7a5a00;
+      border: 1px solid #ffe69c;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
       display: none;
     }
 
-    .edit-box textarea {
-      min-height: 130px;
-      margin-bottom: 10px;
-      font-family: monospace;
+    .meal-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .meal-chip {
+      border: 1px solid #ddd;
+      background: #fffaf0;
+      color: #111;
+      border-radius: 999px;
+      padding: 8px 12px;
       font-size: 13px;
-    }
-
-    .grocery-panel {
-      margin-top: 20px;
-    }
-
-    .grocery-title {
-      font-size: 22px;
-      font-weight: 800;
-      margin: 0 0 6px;
-    }
-
-    .grocery-subtitle {
-      margin: 0 0 14px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .grocery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 10px;
-    }
-
-    .grocery-item {
-      padding: 12px;
-      border-radius: 12px;
-      background: #fafafe;
-      border: 1px solid var(--border);
-      font-size: 14px;
-      line-height: 1.35;
-    }
-
-    .toast {
-      position: fixed;
-      bottom: 18px;
-      right: 18px;
-      background: var(--toastBg);
-      color: var(--toastText);
-      padding: 12px 16px;
-      border-radius: 14px;
-      font-size: 14px;
       font-weight: 700;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(8px);
-      transition: opacity 0.18s ease, transform 0.18s ease;
-      z-index: 1000;
+      cursor: pointer;
     }
 
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
+    .meal-chip:hover {
+      background: #fff3db;
     }
 
-    @media (max-width: 720px) {
-      .container {
-        padding: 16px;
+    .empty-text {
+      color: #777;
+      font-style: italic;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 999;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      width: 100%;
+      max-width: 620px;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.22);
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .modal-subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-top: 4px;
+      line-height: 1.45;
+    }
+
+    .close-btn {
+      background: #ececf3;
+      color: #111;
+      min-width: 42px;
+      padding: 10px 12px;
+    }
+
+    .recipe-meta {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: #333;
+      margin-bottom: 14px;
+    }
+
+    .modal-loading {
+      color: #555;
+      line-height: 1.5;
+      padding: 18px 0;
+    }
+
+    .modal-section-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #666;
+      font-weight: 700;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    .modal-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .copyable-box {
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 700px) {
+      body {
+        padding: 14px;
       }
 
-      .hero {
-        padding: 18px;
-      }
-
-      h1 {
-        font-size: 28px;
-      }
-
-      .toolbar,
-      .plan-topbar,
-      .toolbar-left,
-      .toolbar-right {
-        align-items: stretch;
-      }
-
-      .toolbar-left,
-      .toolbar-right {
-        width: 100%;
-      }
-
-      .toolbar-left button,
-      .toolbar-right button,
-      .toolbar-right select {
-        width: 100%;
-      }
-
-      .action-row {
+      .button-row {
         flex-direction: column;
-        align-items: stretch;
       }
 
-      .regen-select,
-      .action-row button {
+      .button-row button {
         width: 100%;
+      }
+
+      .modal {
+        padding: 14px;
+      }
+
+      .modal-title {
+        font-size: 20px;
       }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="hero">
-      <h1>Life Manager</h1>
-      <p class="subtext">
-        Turn a messy brain dump into a week that actually feels doable.
-        Generate your plan, tweak any day, and instantly refresh just the part you want.
-      </p>
-
-      <textarea
-        id="brainDump"
-        placeholder="Example: Work 9-5 Monday through Friday. Gym 3 times. Dentist Wednesday at 2. Need groceries. I hate chicken. Dinner with friends Friday."
-      ></textarea>
-
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <button id="generateBtn" class="primary-btn">Generate Plan</button>
-          <button id="regenerateMealsBtn" class="secondary-btn" disabled>Refresh All Meals</button>
-        </div>
-
-        <div class="toolbar-right">
-          <button id="copyPlanBtn" class="ghost-btn" disabled>Copy Plan JSON</button>
-          <button id="collapseAllBtn" class="ghost-btn" disabled>Collapse Editors</button>
-          <button id="clearSavedBtn" class="ghost-btn">Clear Saved Plan</button>
-        </div>
-      </div>
-
-      <div class="status-bar">
-        <div id="statusPill" class="status-pill">Ready</div>
-      </div>
-
-      <div id="warningBanner" class="warning-banner"></div>
+    <h1>Life Manager</h1>
+    <div class="subtext">
+      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, and click any meal for a simple recipe-style breakdown.
     </div>
 
-    <div id="planWrapper" class="plan-wrapper hidden">
-      <div class="plan-topbar">
-        <div class="plan-summary" id="planSummary"></div>
+    <textarea id="brainDump" placeholder="Dump your week here... work schedule, gym, appointments, groceries, food dislikes, events, everything."></textarea>
+
+    <div class="button-row">
+      <button id="generateBtn" class="primary-btn">Generate</button>
+    </div>
+
+    <input id="quickEditInput" placeholder="make Thursday lighter, swap dinner to tacos" />
+
+    <div class="button-row">
+      <button id="applyEditBtn" class="secondary-btn">Apply Edit</button>
+      <button id="undoBtn" class="ghost-btn" disabled>Undo</button>
+    </div>
+
+    <div id="status" class="status"></div>
+    <div id="fallbackWarning" class="fallback-warning"></div>
+
+    <div id="plan"></div>
+  </div>
+
+  <div id="mealModalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="mealModalTitle" class="modal-title">Meal Details</h2>
+          <div id="mealModalSubtitle" class="modal-subtitle"></div>
+        </div>
+        <button id="closeMealModalBtn" class="close-btn">✕</button>
       </div>
 
-      <div id="daysGrid" class="days-grid"></div>
-
-      <div class="grocery-panel">
-        <h2 class="grocery-title">Grocery List</h2>
-        <p class="grocery-subtitle">Auto-built from the current meals in your plan.</p>
-        <div id="groceryList"></div>
-      </div>
+      <div id="mealModalContent"></div>
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
-
   <script>
-    const DAYS = [
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-      "sunday"
-    ];
-
-    const DAY_SHORT_HINTS = {
-      monday: "Set the tone",
-      tuesday: "Keep momentum",
-      wednesday: "Midweek check-in",
-      thursday: "Push key tasks",
-      friday: "Wrap up strong",
-      saturday: "Keep it lighter",
-      sunday: "Reset for the week"
-    };
-
-    const STORAGE_KEYS = {
-      plan: "lifeManagerPlan",
-      brainDump: "lifeManagerBrainDump"
-    };
+    let currentPlan = null;
+    let lastPlan = null;
+    let isLoading = false;
+    let mealDetailCache = {};
 
     const brainDumpEl = document.getElementById("brainDump");
+    const quickEditInputEl = document.getElementById("quickEditInput");
     const generateBtn = document.getElementById("generateBtn");
-    const regenerateMealsBtn = document.getElementById("regenerateMealsBtn");
-    const copyPlanBtn = document.getElementById("copyPlanBtn");
-    const collapseAllBtn = document.getElementById("collapseAllBtn");
-    const clearSavedBtn = document.getElementById("clearSavedBtn");
-    const statusPillEl = document.getElementById("statusPill");
-    const warningBannerEl = document.getElementById("warningBanner");
-    const planWrapperEl = document.getElementById("planWrapper");
-    const planSummaryEl = document.getElementById("planSummary");
-    const daysGridEl = document.getElementById("daysGrid");
-    const groceryListEl = document.getElementById("groceryList");
-    const toastEl = document.getElementById("toast");
+    const applyEditBtn = document.getElementById("applyEditBtn");
+    const undoBtn = document.getElementById("undoBtn");
+    const statusEl = document.getElementById("status");
+    const planEl = document.getElementById("plan");
+    const fallbackWarningEl = document.getElementById("fallbackWarning");
 
-    let currentPlan = null;
-    let currentLoadingMode = null;
-    let currentLoadingDay = null;
-    let toastTimer = null;
+    const mealModalBackdropEl = document.getElementById("mealModalBackdrop");
+    const mealModalTitleEl = document.getElementById("mealModalTitle");
+    const mealModalSubtitleEl = document.getElementById("mealModalSubtitle");
+    const mealModalContentEl = document.getElementById("mealModalContent");
+    const closeMealModalBtn = document.getElementById("closeMealModalBtn");
 
     function setStatus(message) {
-      statusPillEl.textContent = message || "Ready";
+      statusEl.textContent = message || "";
     }
 
-    function showWarning(message = "") {
-      warningBannerEl.textContent = message;
-      warningBannerEl.classList.toggle("show", !!message);
-    }
+    function setLoadingState(loading, label = "") {
+      isLoading = loading;
 
-    function showToast(message) {
-      clearTimeout(toastTimer);
-      toastEl.textContent = message;
-      toastEl.classList.add("show");
+      brainDumpEl.disabled = loading;
+      quickEditInputEl.disabled = loading;
+      generateBtn.disabled = loading;
+      applyEditBtn.disabled = loading;
+      undoBtn.disabled = loading || !lastPlan;
 
-      toastTimer = setTimeout(() => {
-        toastEl.classList.remove("show");
-      }, 2200);
-    }
-
-    function capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
+      generateBtn.textContent = loading && label === "generate" ? "Loading..." : "Generate";
+      applyEditBtn.textContent = loading && label === "quickEdit" ? "Loading..." : "Apply Edit";
     }
 
     function escapeHtml(str) {
@@ -599,347 +391,204 @@
         .replaceAll("'", "&#039;");
     }
 
-    function sanitizeDay(day) {
-      return {
-        tasks: Array.isArray(day?.tasks) ? day.tasks.filter(Boolean).map(String) : [],
-        meals: Array.isArray(day?.meals) ? day.meals.filter(Boolean).map(String) : [],
-        busy: Boolean(day?.busy)
-      };
+    function savePlan() {
+      if (!currentPlan) return;
+      localStorage.setItem("lifeManagerPlan", JSON.stringify(currentPlan));
+      localStorage.setItem("lifeManagerBrainDump", brainDumpEl.value || "");
+      localStorage.setItem("lifeManagerMealDetailCache", JSON.stringify(mealDetailCache));
     }
 
-    function sanitizePlan(plan) {
-      if (!plan || typeof plan !== "object") return null;
+    function loadPlan() {
+      const savedBrainDump = localStorage.getItem("lifeManagerBrainDump");
+      const savedPlan = localStorage.getItem("lifeManagerPlan");
+      const savedMealCache = localStorage.getItem("lifeManagerMealDetailCache");
 
-      return {
-        monday: sanitizeDay(plan.monday),
-        tuesday: sanitizeDay(plan.tuesday),
-        wednesday: sanitizeDay(plan.wednesday),
-        thursday: sanitizeDay(plan.thursday),
-        friday: sanitizeDay(plan.friday),
-        saturday: sanitizeDay(plan.saturday),
-        sunday: sanitizeDay(plan.sunday),
-        groceryList: Array.isArray(plan.groceryList) ? plan.groceryList.filter(Boolean).map(String) : [],
-        isFallback: Boolean(plan.isFallback)
-      };
-    }
+      if (savedBrainDump) {
+        brainDumpEl.value = savedBrainDump;
+      }
 
-    function saveCurrentState() {
-      try {
-        if (currentPlan) {
-          localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(currentPlan));
+      if (savedMealCache) {
+        try {
+          mealDetailCache = JSON.parse(savedMealCache) || {};
+        } catch (error) {
+          console.error("Failed to load saved meal detail cache", error);
+          mealDetailCache = {};
         }
-        localStorage.setItem(STORAGE_KEYS.brainDump, brainDumpEl.value || "");
-      } catch (error) {
-        console.error("Failed to save local state", error);
+      }
+
+      if (savedPlan) {
+        try {
+          currentPlan = JSON.parse(savedPlan);
+          render();
+
+          if (currentPlan?.isFallback) {
+            showFallbackWarning("You are viewing a fallback plan from a previous API failure.");
+          }
+        } catch (error) {
+          console.error("Failed to load saved plan", error);
+        }
       }
     }
 
-    function loadSavedState() {
-      try {
-        const savedBrainDump = localStorage.getItem(STORAGE_KEYS.brainDump);
-        if (savedBrainDump) {
-          brainDumpEl.value = savedBrainDump;
-        }
-
-        const savedPlan = localStorage.getItem(STORAGE_KEYS.plan);
-        if (!savedPlan) return;
-
-        const parsed = JSON.parse(savedPlan);
-        const sanitized = sanitizePlan(parsed);
-
-        if (!sanitized) return;
-
-        currentPlan = sanitized;
-        renderPlan(currentPlan);
-
-        if (sanitized.isFallback) {
-          showWarning("This is a fallback plan from a failed API request. Refresh or regenerate when you're back online.");
-          setStatus("Loaded saved fallback plan.");
-        } else {
-          showWarning("");
-          setStatus("Loaded saved plan.");
-        }
-      } catch (error) {
-        console.error("Failed to load local state", error);
-      }
+    function showFallbackWarning(message) {
+      fallbackWarningEl.style.display = "block";
+      fallbackWarningEl.textContent = message;
     }
 
-    function clearSavedState() {
-      localStorage.removeItem(STORAGE_KEYS.plan);
-      localStorage.removeItem(STORAGE_KEYS.brainDump);
+    function hideFallbackWarning() {
+      fallbackWarningEl.style.display = "none";
+      fallbackWarningEl.textContent = "";
     }
 
     function renderList(items) {
-      if (!items || !items.length) {
-        return '<div class="empty">Nothing here yet.</div>';
+      if (!Array.isArray(items) || !items.length) {
+        return "<li>None</li>";
       }
 
-      return `
-        <ul>
-          ${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
-        </ul>
-      `;
+      return items.map(item => `<li>${escapeHtml(item)}</li>`).join("");
     }
 
-    function renderGroceryList(items) {
-      if (!items || !items.length) {
-        return '<div class="empty">No grocery items yet.</div>';
+    function renderMealChips(day, meals) {
+      if (!Array.isArray(meals) || !meals.length) {
+        return `<div class="empty-text">No meals planned.</div>`;
       }
 
       return `
-        <div class="grocery-grid">
-          ${items.map(item => `<div class="grocery-item">${escapeHtml(item)}</div>`).join("")}
+        <div class="meal-chip-list">
+          ${meals.map(meal => `
+            <button
+              class="meal-chip"
+              data-day="${escapeHtml(day)}"
+              data-meal="${escapeHtml(meal)}"
+              type="button"
+            >
+              ${escapeHtml(meal)}
+            </button>
+          `).join("")}
         </div>
       `;
     }
 
-    function buildEditText(dayData) {
-      return JSON.stringify(
-        {
-          tasks: dayData.tasks,
-          meals: dayData.meals,
-          busy: dayData.busy
-        },
-        null,
-        2
-      );
+    function attachMealChipEvents() {
+      const mealChips = document.querySelectorAll(".meal-chip");
+
+      mealChips.forEach(chip => {
+        chip.addEventListener("click", () => {
+          const day = chip.getAttribute("data-day");
+          const meal = chip.getAttribute("data-meal");
+          openMealDetails(day, meal);
+        });
+      });
     }
 
-    function anyLoading() {
-      return !!currentLoadingMode;
-    }
+    function render() {
+      if (!currentPlan) {
+        planEl.innerHTML = "";
+        return;
+      }
 
-    function closeAllEditors() {
-      document.querySelectorAll(".edit-box").forEach(box => box.classList.add("hidden"));
-    }
+      const dayOrder = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ];
 
-    function updateSummary(plan) {
-      const totalTasks = DAYS.reduce((sum, day) => sum + (plan[day]?.tasks?.length || 0), 0);
-      const totalMeals = DAYS.reduce((sum, day) => sum + (plan[day]?.meals?.length || 0), 0);
-      const busyDays = DAYS.filter(day => plan[day]?.busy).length;
-      const groceryCount = plan.groceryList?.length || 0;
+      let html = "";
 
-      planSummaryEl.innerHTML = `
-        <div class="summary-chip">${totalTasks} tasks</div>
-        <div class="summary-chip">${totalMeals} meals</div>
-        <div class="summary-chip">${busyDays} busy days</div>
-        <div class="summary-chip">${groceryCount} grocery items</div>
-      `;
-    }
-
-    function renderPlan(plan) {
-      currentPlan = sanitizePlan(plan);
-      daysGridEl.innerHTML = "";
-
-      DAYS.forEach((day) => {
+      for (const day of dayOrder) {
         const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
-        const cardLoading = currentLoadingDay === day;
-        const taskCount = dayData.tasks?.length || 0;
-        const mealCount = dayData.meals?.length || 0;
 
-        const card = document.createElement("div");
-        card.className = `day-card ${cardLoading ? "loading" : ""}`;
-
-        card.innerHTML = `
-          <div class="day-header">
-            <div class="day-title-wrap">
-              <div class="day-title">${capitalize(day)}</div>
-              <div class="day-subtitle">${DAY_SHORT_HINTS[day]}</div>
-            </div>
-            <div class="busy-badge ${dayData.busy ? "busy" : "light"}">
+        html += `
+          <div class="card">
+            <h3>${escapeHtml(day)}</h3>
+            <div class="busy-badge ${dayData.busy ? "busy" : ""}">
               ${dayData.busy ? "Busy Day" : "Lighter Day"}
             </div>
-          </div>
 
-          <div class="section-block tasks-block">
-            <div class="section-head">
-              <div class="section-label">Tasks</div>
-              <div class="section-count">${taskCount}</div>
-            </div>
-            <div class="tasks-list">${renderList(dayData.tasks)}</div>
-          </div>
+            <div class="mini-label">Tasks</div>
+            <ul>${renderList(dayData.tasks)}</ul>
 
-          <div class="section-block meals-block">
-            <div class="section-head">
-              <div class="section-label">Meals</div>
-              <div class="section-count">${mealCount}</div>
-            </div>
-            <div class="meals-list">${renderList(dayData.meals)}</div>
-          </div>
-
-          <div class="card-actions">
-            <div class="action-row">
-              <select class="regen-select" ${anyLoading() ? "disabled" : ""}>
-                <option value="regenerateDayMeals">Refresh meals only</option>
-                <option value="regenerateDayTasks">Refresh tasks only</option>
-                <option value="regenerateWholeDay">Refresh whole day</option>
-              </select>
-              <button class="secondary-btn small-btn run-regen-btn" ${anyLoading() ? "disabled" : ""}>
-                ${cardLoading ? "Refreshing..." : "Run"}
-              </button>
-            </div>
-
-            <button class="ghost-btn small-btn edit-toggle-btn" ${anyLoading() ? "disabled" : ""}>
-              Edit Day Manually
-            </button>
-          </div>
-
-          <div class="edit-box hidden">
-            <textarea class="edit-textarea">${escapeHtml(buildEditText(dayData))}</textarea>
-            <div class="action-row">
-              <button class="primary-btn small-btn save-day-btn" ${anyLoading() ? "disabled" : ""}>Save Changes</button>
-              <button class="secondary-btn small-btn cancel-day-btn" ${anyLoading() ? "disabled" : ""}>Cancel</button>
-            </div>
+            <div class="mini-label">Meals</div>
+            ${renderMealChips(day, dayData.meals)}
           </div>
         `;
-
-        const editBox = card.querySelector(".edit-box");
-        const editToggleBtn = card.querySelector(".edit-toggle-btn");
-        const cancelDayBtn = card.querySelector(".cancel-day-btn");
-        const saveDayBtn = card.querySelector(".save-day-btn");
-        const editTextarea = card.querySelector(".edit-textarea");
-        const regenSelect = card.querySelector(".regen-select");
-        const runRegenBtn = card.querySelector(".run-regen-btn");
-
-        editToggleBtn.addEventListener("click", () => {
-          const isHidden = editBox.classList.contains("hidden");
-          closeAllEditors();
-          if (isHidden) {
-            editBox.classList.remove("hidden");
-          } else {
-            editBox.classList.add("hidden");
-          }
-        });
-
-        cancelDayBtn.addEventListener("click", () => {
-          editTextarea.value = buildEditText(currentPlan[day]);
-          editBox.classList.add("hidden");
-          setStatus(`${capitalize(day)} editor closed.`);
-        });
-
-        saveDayBtn.addEventListener("click", () => {
-          try {
-            const parsed = JSON.parse(editTextarea.value);
-
-            currentPlan[day] = {
-              tasks: Array.isArray(parsed.tasks) ? parsed.tasks.filter(Boolean).map(String) : [],
-              meals: Array.isArray(parsed.meals) ? parsed.meals.filter(Boolean).map(String) : [],
-              busy: Boolean(parsed.busy)
-            };
-
-            currentPlan.isFallback = false;
-            renderPlan(currentPlan);
-            saveCurrentState();
-            setStatus(`${capitalize(day)} updated.`);
-            showWarning("");
-            showToast(`${capitalize(day)} saved`);
-          } catch (error) {
-            setStatus(`Invalid JSON for ${capitalize(day)}. Use { "tasks": [], "meals": [], "busy": true }`);
-          }
-        });
-
-        runRegenBtn.addEventListener("click", () => {
-          regenerateDay(day, regenSelect.value);
-        });
-
-        daysGridEl.appendChild(card);
-      });
-
-      groceryListEl.innerHTML = renderGroceryList(currentPlan.groceryList || []);
-      planWrapperEl.classList.remove("hidden");
-      updateSummary(currentPlan);
-
-      regenerateMealsBtn.disabled = anyLoading() || !currentPlan;
-      copyPlanBtn.disabled = !currentPlan;
-      collapseAllBtn.disabled = !currentPlan;
-    }
-
-    function setLoading(mode = null, day = null) {
-      currentLoadingMode = mode;
-      currentLoadingDay = day;
-
-      generateBtn.disabled = !!mode;
-      regenerateMealsBtn.disabled = !!mode || !currentPlan;
-      copyPlanBtn.disabled = !!mode || !currentPlan;
-      collapseAllBtn.disabled = !!mode || !currentPlan;
-      brainDumpEl.disabled = !!mode;
-
-      generateBtn.textContent = mode === "generate" ? "Generating..." : "Generate Plan";
-      regenerateMealsBtn.textContent = mode === "regenerateMeals" ? "Refreshing All Meals..." : "Refresh All Meals";
-
-      if (currentPlan) {
-        renderPlan(currentPlan);
-      }
-    }
-
-    async function postPlan(payload) {
-      const response = await fetch("/api/plan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const error = new Error(data?.details || data?.error || "Request failed");
-        error.fallback = data?.fallback || null;
-        throw error;
       }
 
-      return data;
+      html += `
+        <div class="section-title">Grocery List</div>
+        <div class="card">
+          <ul>${renderList(currentPlan.groceryList || [])}</ul>
+        </div>
+      `;
+
+      planEl.innerHTML = html;
+      attachMealChipEvents();
+    }
+
+    function clearMealDetailsCache() {
+      mealDetailCache = {};
+      localStorage.removeItem("lifeManagerMealDetailCache");
     }
 
     async function generatePlan() {
       const brainDump = brainDumpEl.value.trim();
 
       if (!brainDump) {
-        setStatus("Add your brain dump first.");
+        setStatus("Enter your brain dump first.");
         return;
       }
 
       try {
-        setLoading("generate");
-        setStatus("Building your week...");
-        showWarning("");
+        setLoadingState(true, "generate");
+        setStatus("Generating plan...");
+        hideFallbackWarning();
 
-        const data = await postPlan({
-          mode: "generate",
-          brainDump
+        const res = await fetch("/api/plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "generate",
+            brainDump
+          })
         });
 
-        currentLoadingMode = null;
-        currentLoadingDay = null;
-        renderPlan(data);
-        saveCurrentState();
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Generate failed");
+        }
+
+        currentPlan = data;
+        lastPlan = null;
+        undoBtn.disabled = true;
+        clearMealDetailsCache();
+
+        render();
+        savePlan();
+
+        if (data?.isFallback) {
+          showFallbackWarning("The API failed, so a fallback plan was loaded.");
+        }
+
         setStatus("Plan generated.");
-        showToast("Week created");
       } catch (error) {
         console.error(error);
-
-        if (error.fallback) {
-          currentLoadingMode = null;
-          currentLoadingDay = null;
-          renderPlan(error.fallback);
-          saveCurrentState();
-          showWarning("The API failed, so you're seeing an empty fallback plan. Try again in a moment.");
-          setStatus("Fallback plan loaded.");
-          showToast("API failed — fallback loaded");
-        } else {
-          setStatus(error.message || "Something went wrong.");
-        }
+        setStatus("Generate failed.");
+        alert(error.message || "Generate failed.");
       } finally {
-        setLoading(null, null);
+        setLoadingState(false);
       }
     }
 
-    async function regenerateMeals() {
-      const brainDump = brainDumpEl.value.trim();
+    async function applyQuickEdit() {
+      const input = quickEditInputEl.value.trim();
 
-      if (!brainDump) {
-        setStatus("Add your brain dump first.");
+      if (!input) {
+        setStatus("Enter an edit first.");
         return;
       }
 
@@ -949,156 +598,166 @@
       }
 
       try {
-        setLoading("regenerateMeals");
-        setStatus("Refreshing meals and grocery list...");
-        showWarning("");
+        lastPlan = JSON.parse(JSON.stringify(currentPlan));
+        setLoadingState(true, "quickEdit");
+        setStatus("Applying edit...");
+        hideFallbackWarning();
 
-        const data = await postPlan({
-          mode: "regenerateMeals",
-          brainDump,
-          existingPlan: currentPlan
+        const res = await fetch("/api/plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "quickEdit",
+            brainDump: brainDumpEl.value.trim(),
+            existingPlan: currentPlan,
+            editInstruction: input
+          })
         });
 
-        currentPlan = {
-          ...currentPlan,
-          ...sanitizePlan(data)
-        };
+        const data = await res.json();
 
-        currentLoadingMode = null;
-        currentLoadingDay = null;
-        renderPlan(currentPlan);
-        saveCurrentState();
-        setStatus("All meals refreshed. Tasks stayed the same.");
-        showToast("Meals refreshed");
+        if (!res.ok) {
+          throw new Error(data?.error || "Edit failed");
+        }
+
+        currentPlan = data;
+        clearMealDetailsCache();
+        render();
+        savePlan();
+
+        if (data?.isFallback) {
+          showFallbackWarning("The API failed, so a fallback plan was loaded.");
+        }
+
+        undoBtn.disabled = false;
+        setStatus("Edit applied.");
       } catch (error) {
         console.error(error);
-
-        if (error.fallback) {
-          currentLoadingMode = null;
-          currentLoadingDay = null;
-          renderPlan(error.fallback);
-          saveCurrentState();
-          showWarning("The API failed during meal refresh, so an empty fallback plan was loaded.");
-          setStatus("Fallback plan loaded.");
-          showToast("API failed — fallback loaded");
-        } else {
-          setStatus(error.message || "Something went wrong.");
-        }
+        setStatus("Edit failed.");
+        alert(error.message || "Edit failed.");
       } finally {
-        setLoading(null, null);
+        setLoadingState(false);
       }
     }
 
-    async function regenerateDay(day, mode) {
-      const brainDump = brainDumpEl.value.trim();
+    function undoEdit() {
+      if (!lastPlan) return;
 
-      if (!brainDump) {
-        setStatus("Add your brain dump first.");
-        return;
-      }
+      currentPlan = lastPlan;
+      lastPlan = null;
 
-      if (!currentPlan) {
-        setStatus("Generate a plan first.");
-        return;
-      }
+      clearMealDetailsCache();
+      render();
+      savePlan();
 
-      const modeLabelMap = {
-        regenerateDayMeals: "meals",
-        regenerateDayTasks: "tasks",
-        regenerateWholeDay: "whole day"
-      };
-
-      try {
-        closeAllEditors();
-        setLoading(mode, day);
-        setStatus(`Refreshing ${modeLabelMap[mode]} for ${capitalize(day)}...`);
-        showWarning("");
-
-        const data = await postPlan({
-          mode,
-          brainDump,
-          existingPlan: currentPlan,
-          targetDay: day
-        });
-
-        currentPlan = {
-          ...currentPlan,
-          ...sanitizePlan(data)
-        };
-
-        currentLoadingMode = null;
-        currentLoadingDay = null;
-        renderPlan(currentPlan);
-        saveCurrentState();
-        setStatus(`${capitalize(day)} updated.`);
-        showToast(`${capitalize(day)} refreshed`);
-      } catch (error) {
-        console.error(error);
-
-        if (error.fallback) {
-          currentLoadingMode = null;
-          currentLoadingDay = null;
-          renderPlan(error.fallback);
-          saveCurrentState();
-          showWarning(`The API failed while refreshing ${capitalize(day)}, so an empty fallback plan was loaded.`);
-          setStatus("Fallback plan loaded.");
-          showToast("API failed — fallback loaded");
-        } else {
-          setStatus(error.message || "Something went wrong.");
-        }
-      } finally {
-        setLoading(null, null);
-      }
+      hideFallbackWarning();
+      undoBtn.disabled = true;
+      setStatus("Undo complete.");
     }
 
-    async function copyPlanJson() {
+    function openMealModal(title, subtitle) {
+      mealModalTitleEl.textContent = title || "Meal Details";
+      mealModalSubtitleEl.textContent = subtitle || "";
+      mealModalBackdropEl.classList.add("show");
+    }
+
+    function closeMealModal() {
+      mealModalBackdropEl.classList.remove("show");
+      mealModalTitleEl.textContent = "Meal Details";
+      mealModalSubtitleEl.textContent = "";
+      mealModalContentEl.innerHTML = "";
+    }
+
+    function mealCacheKey(dayName, mealName) {
+      return `${String(dayName).toLowerCase()}__${String(mealName).toLowerCase()}`;
+    }
+
+    function renderMealDetailsContent(details) {
+      const ingredientsHtml = Array.isArray(details.ingredients) && details.ingredients.length
+        ? `<ul class="modal-list">${details.ingredients.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+        : `<div class="empty-text">No ingredients needed.</div>`;
+
+      const stepsHtml = Array.isArray(details.steps) && details.steps.length
+        ? `<ol class="modal-list">${details.steps.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`
+        : `<div class="empty-text">No steps needed.</div>`;
+
+      mealModalContentEl.innerHTML = `
+        ${details.prepTime ? `<div class="recipe-meta">${escapeHtml(details.prepTime)}</div>` : ""}
+        ${details.description ? `<div class="copyable-box">${escapeHtml(details.description)}</div>` : ""}
+        <div class="modal-section-title">Ingredients</div>
+        ${ingredientsHtml}
+        <div class="modal-section-title">Steps</div>
+        ${stepsHtml}
+      `;
+    }
+
+    async function openMealDetails(dayName, mealName) {
       if (!currentPlan) return;
 
+      const cacheKey = mealCacheKey(dayName, mealName);
+      openMealModal(mealName, `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} meal`);
+
+      if (mealDetailCache[cacheKey]) {
+        renderMealDetailsContent(mealDetailCache[cacheKey]);
+        return;
+      }
+
+      mealModalContentEl.innerHTML = `
+        <div class="modal-loading">
+          Building a simple recipe plan for <strong>${escapeHtml(mealName)}</strong>...
+        </div>
+      `;
+
       try {
-        await navigator.clipboard.writeText(JSON.stringify(currentPlan, null, 2));
-        setStatus("Plan JSON copied.");
-        showToast("Copied plan JSON");
+        const res = await fetch("/api/plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "mealDetails",
+            brainDump: brainDumpEl.value.trim(),
+            existingPlan: currentPlan,
+            mealName,
+            dayName
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Failed to load meal details");
+        }
+
+        mealDetailCache[cacheKey] = data;
+        savePlan();
+        renderMealDetailsContent(data);
       } catch (error) {
         console.error(error);
-        setStatus("Could not copy plan.");
+        mealModalContentEl.innerHTML = `
+          <div class="copyable-box">
+            Could not load meal details right now.
+          </div>
+        `;
       }
     }
 
     generateBtn.addEventListener("click", generatePlan);
-    regenerateMealsBtn.addEventListener("click", regenerateMeals);
-    copyPlanBtn.addEventListener("click", copyPlanJson);
-    collapseAllBtn.addEventListener("click", () => {
-      closeAllEditors();
-      setStatus("All editors collapsed.");
-    });
+    applyEditBtn.addEventListener("click", applyQuickEdit);
+    undoBtn.addEventListener("click", undoEdit);
+    closeMealModalBtn.addEventListener("click", closeMealModal);
 
-    clearSavedBtn.addEventListener("click", () => {
-      clearSavedState();
-      currentPlan = null;
-      currentLoadingMode = null;
-      currentLoadingDay = null;
-      daysGridEl.innerHTML = "";
-      groceryListEl.innerHTML = "";
-      planSummaryEl.innerHTML = "";
-      planWrapperEl.classList.add("hidden");
-      brainDumpEl.value = "";
-      regenerateMealsBtn.disabled = true;
-      copyPlanBtn.disabled = true;
-      collapseAllBtn.disabled = true;
-      showWarning("");
-      setStatus("Saved plan cleared.");
-      showToast("Saved state cleared");
-    });
-
-    brainDumpEl.addEventListener("input", () => {
-      try {
-        localStorage.setItem(STORAGE_KEYS.brainDump, brainDumpEl.value || "");
-      } catch (error) {
-        console.error("Failed to save brain dump", error);
+    mealModalBackdropEl.addEventListener("click", (event) => {
+      if (event.target === mealModalBackdropEl) {
+        closeMealModal();
       }
     });
 
-    loadSavedState();
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && mealModalBackdropEl.classList.contains("show")) {
+        closeMealModal();
+      }
+    });
+
+    loadPlan();
   </script>
 </body>
 </html>
