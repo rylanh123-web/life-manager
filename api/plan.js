@@ -41,17 +41,19 @@ TASK RULES:
 
 MEAL RULES:
 - Only include meals if user mentions food, groceries, cooking, or preferences
-- Each meal day must have 2–3 meals
+- Each day with meals must have 2–3 meals
+- If a day includes "dinner with friends" → include that as a meal
 - Meals should be realistic and varied
+- Avoid repeating the same meals too often
 - Respect food dislikes STRICTLY (e.g. no chicken)
-- If cooking is mentioned → include home meals
-- If eating out is mentioned → reflect it
+- If cooking is mentioned → include home-cooked meals
 
 LOGIC RULES:
 - Work days = busy
 - Gym days = busy
-- Weekends = light unless tasks exist
-- Distribute tasks realistically across the week
+- If a day has ANY tasks → it should not be empty
+- Weekends should include light structure (meals or simple activity)
+- Avoid completely empty days unless explicitly requested
 
 OUTPUT FORMAT (STRICT JSON ONLY):
 
