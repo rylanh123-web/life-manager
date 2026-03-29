@@ -360,13 +360,33 @@ async function rebuildGroceryList(brainDump, plan) {
   return safeArray(groceryResponse?.groceryList);
 }
 
+function successResponse(plan, extra = {}) {
+  return {
+    ...normalizePlan(plan),
+    isFallback: false,
+    ...extra,
+  };
+}
+
+function fallbackResponse(extra = {}) {
+  return {
+    ...normalizePlan(EMPTY_PLAN),
+    isFallback: true,
+    ...extra,
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   if (!OPENROUTER_API_KEY) {
-    return res.status(500).json({ error: "Missing OPENROUTER_API_KEY" });
+    return res.status(500).json({
+      error: "Missing OPENROUTER_API_KEY",
+      details: "OPENROUTER_API_KEY is not configured",
+      fallback: fallbackResponse(),
+    });
   }
 
   try {
@@ -507,14 +527,14 @@ export default async function handler(req, res) {
       plan = normalizePlan(generatedRaw);
     }
 
-    return res.status(200).json(normalizePlan(plan));
+    return res.status(200).json(successResponse(plan));
   } catch (error) {
     console.error("Plan API error:", error);
 
     return res.status(500).json({
       error: "Failed to generate plan",
       details: error.message || "Unknown error",
-      fallback: EMPTY_PLAN,
+      fallback: fallbackResponse(),
     });
   }
 }
