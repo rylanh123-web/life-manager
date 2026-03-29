@@ -1,22 +1,22 @@
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
 export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!OPENROUTER_API_KEY) {
+    return res.status(500).json({ error: "Missing API key" });
+  }
+
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
-    }
-
     const { brainDump } = req.body;
-
-    const apiKey = process.env.OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-      return res.status(500).json({ error: "Missing API key" });
-    }
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "openai/gpt-4o-mini",
@@ -24,60 +24,55 @@ export default async function handler(req, res) {
           {
             role: "system",
             content: `
-You are an AI life planner.
+You are a smart weekly planning assistant.
 
-Convert the user's input into a structured weekly plan in JSON format.
+Turn the user's brain dump into a realistic weekly plan.
 
 Rules:
-- Return ONLY valid JSON
-- No explanations, no markdown
-- Format exactly like this:
+- Use real human behavior (not generic filler)
+- Meals should be real (e.g. eggs, chicken salad, pasta)
+- Grocery list should be real ingredients
+- Spread gym across the week
+- Work days = busy
+- Weekends = lighter unless specified
+
+Return ONLY JSON:
 
 {
-  "monday": { "tasks": [], "meals": [], "busy": false },
-  "tuesday": { "tasks": [], "meals": [], "busy": false },
-  "wednesday": { "tasks": [], "meals": [], "busy": false },
-  "thursday": { "tasks": [], "meals": [], "busy": false },
-  "friday": { "tasks": [], "meals": [], "busy": false },
-  "saturday": { "tasks": [], "meals": [], "busy": false },
-  "sunday": { "tasks": [], "meals": [], "busy": false },
+  "monday": { "tasks": [], "meals": [], "busy": true/false },
+  "tuesday": { "tasks": [], "meals": [], "busy": true/false },
+  "wednesday": { "tasks": [], "meals": [], "busy": true/false },
+  "thursday": { "tasks": [], "meals": [], "busy": true/false },
+  "friday": { "tasks": [], "meals": [], "busy": true/false },
+  "saturday": { "tasks": [], "meals": [], "busy": true/false },
+  "sunday": { "tasks": [], "meals": [], "busy": true/false },
   "groceryList": []
 }
 
-Guidelines:
-- Max 2–3 tasks per day
-- Keep it realistic
-- Meals must be actual food
-- Keep weekend lighter
-- Deduplicate grocery list
-`
+NO explanation. ONLY JSON.
+            `,
           },
           {
             role: "user",
-            content: brainDump
-          }
-        ]
-      })
+            content: brainDump,
+          },
+        ],
+      }),
     });
 
     const data = await response.json();
-
-    const result = data.choices?.[0]?.message?.content;
+    const text = data.choices?.[0]?.message?.content || "{}";
 
     let parsed;
 
     try {
-      parsed = JSON.parse(result);
-    } catch (e) {
-      return res.status(500).json({
-        error: "Failed to parse AI response",
-        raw: result
-      });
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { error: "Invalid JSON from AI" };
     }
 
-    return res.status(200).json(parsed);
-
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+    res.status(200).json(parsed);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 }
