@@ -58,6 +58,15 @@ GROCERY RULES:
 - No generic items like "breakfast"
 - Grocery list must match the meal plan and must respect all food dislikes/preferences
 
+MEAL RULES:
+- Only include meals if the user mentions food, groceries, cooking, or preferences
+- Each day with meals should have 2–3 meals (breakfast, lunch, dinner as appropriate)
+- Meals should be simple, realistic, and varied
+- Avoid repeating the same meal too often
+- Respect all food dislikes and preferences strictly
+- If cooking is mentioned, include home-cooked meals
+- If eating out is implied (like dinner with friends), reflect that
+
 Return ONLY JSON:
 
 {
