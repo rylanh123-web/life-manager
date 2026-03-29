@@ -1,97 +1,282 @@
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODEL = "openai/gpt-4o-mini";
+
+const EMPTY_PLAN = {
+  monday: { tasks: [], meals: [], busy: false },
+  tuesday: { tasks: [], meals: [], busy: false },
+  wednesday: { tasks: [], meals: [], busy: false },
+  thursday: { tasks: [], meals: [], busy: false },
+  friday: { tasks: [], meals: [], busy: false },
+  saturday: { tasks: [], meals: [], busy: false },
+  sunday: { tasks: [], meals: [], busy: false },
+  groceryList: [],
+};
+
+function safeArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+}
+
+function safeDay(day) {
+  return {
+    tasks: safeArray(day?.tasks),
+    meals: safeArray(day?.meals),
+    busy: Boolean(day?.busy),
+  };
+}
+
+function normalizePlan(plan) {
+  return {
+    monday: safeDay(plan?.monday),
+    tuesday: safeDay(plan?.tuesday),
+    wednesday: safeDay(plan?.wednesday),
+    thursday: safeDay(plan?.thursday),
+    friday: safeDay(plan?.friday),
+    saturday: safeDay(plan?.saturday),
+    sunday: safeDay(plan?.sunday),
+    groceryList: safeArray(plan?.groceryList),
+  };
+}
+
+function extractJson(text) {
+  if (!text || typeof text !== "string") return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      const sliced = text.slice(firstBrace, lastBrace + 1);
+      try {
+        return JSON.parse(sliced);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
+async function callOpenRouter(messages) {
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages,
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter error: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error("No content returned from model");
+  }
+
+  const parsed = extractJson(content);
+
+  if (!parsed) {
+    throw new Error("Model did not return valid JSON");
+  }
+
+  return normalizePlan(parsed);
+}
+
+function buildGenerateMessages(brainDump) {
+  return [
+    {
+      role: "system",
+      content: `
+You are generating a weekly life plan for a real product called Life Manager.
+
+This is NOT a generic planner.
+The result must feel human, practical, realistic, and actually usable in real life.
+
+Return ONLY valid JSON matching this exact shape:
+{
+  "monday": { "tasks": [], "meals": [], "busy": false },
+  "tuesday": { "tasks": [], "meals": [], "busy": false },
+  "wednesday": { "tasks": [], "meals": [], "busy": false },
+  "thursday": { "tasks": [], "meals": [], "busy": false },
+  "friday": { "tasks": [], "meals": [], "busy": false },
+  "saturday": { "tasks": [], "meals": [], "busy": false },
+  "sunday": { "tasks": [], "meals": [], "busy": false },
+  "groceryList": []
+}
+
+Rules:
+- NO extra text
+- ONLY JSON
+- Extract ALL tasks from the brain dump
+- NEVER drop tasks
+- Distribute tasks across the correct days
+- If user says "work 9-5 monday through friday", apply it to all weekdays
+- If user says "gym 3 times", spread it across the week
+- If work exists, weekdays should not be empty
+- Work days should usually be busy
+- Gym days should usually be busy
+- Weekends should be lighter but not empty unless explicitly intended
+
+Meal rules:
+- Only include meals if the user mentions food, groceries, cooking, eating, dinner plans, or food preferences
+- Each meal day should have 2-3 meals
+- Meals must be realistic, varied, and practical
+- Reflect cooking vs eating out if implied
+- Respect dislikes and restrictions exactly
+- Example: if user says "I hate chicken", do not include chicken
+- If user says "dinner with friends", that counts as a meal
+- Grocery list should match the meals
+
+Keep wording natural and concise.
+      `.trim(),
+    },
+    {
+      role: "user",
+      content: `Brain dump:\n${brainDump}`,
+    },
+  ];
+}
+
+function buildRegenerateMealsMessages(brainDump, existingPlan) {
+  return [
+    {
+      role: "system",
+      content: `
+You are updating a weekly plan for a real product called Life Manager.
+
+Return ONLY valid JSON matching this exact shape:
+{
+  "monday": { "tasks": [], "meals": [], "busy": false },
+  "tuesday": { "tasks": [], "meals": [], "busy": false },
+  "wednesday": { "tasks": [], "meals": [], "busy": false },
+  "thursday": { "tasks": [], "meals": [], "busy": false },
+  "friday": { "tasks": [], "meals": [], "busy": false },
+  "saturday": { "tasks": [], "meals": [], "busy": false },
+  "sunday": { "tasks": [], "meals": [], "busy": false },
+  "groceryList": []
+}
+
+Critical rules:
+- KEEP ALL TASKS EXACTLY THE SAME as the existing plan
+- DO NOT add tasks
+- DO NOT remove tasks
+- DO NOT rewrite task text
+- KEEP busy flags the same unless absolutely necessary for validity
+- ONLY regenerate meals and groceryList
+- NO extra text
+- ONLY JSON
+
+Meal rules:
+- Meals must feel human, practical, and realistic
+- Vary meals across the week
+- Respect user dislikes and restrictions exactly
+- Example: if user says "I hate chicken", do not include chicken
+- If the user mentioned food/groceries/cooking/preferences, provide 2-3 meals per relevant day
+- If a day already has an event meal like dinner with friends, that can stay as a meal concept but you may rewrite the meal lineup around it
+- Grocery list should match the new meals
+
+The final output must preserve the exact tasks from the existing plan.
+      `.trim(),
+    },
+    {
+      role: "user",
+      content: `Original brain dump:\n${brainDump}\n\nExisting plan:\n${JSON.stringify(existingPlan, null, 2)}`,
+    },
+  ];
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   if (!OPENROUTER_API_KEY) {
-    return res.status(500).json({ error: "Missing API key" });
+    return res.status(500).json({ error: "Missing OPENROUTER_API_KEY" });
   }
 
   try {
-    const { brainDump } = req.body;
+    const { brainDump = "", mode = "generate", existingPlan = null } = req.body || {};
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `
-You are a smart weekly planning assistant.
-
-Your job is to convert a brain dump into a structured weekly plan.
-
-CRITICAL RULES:
-
-TASK RULES:
-- Extract ALL tasks from the input and assign them to appropriate days
-- "work 9-5 monday through friday" = add "work 9-5" to Monday–Friday
-- "gym 3 times" = schedule gym on 3 separate days (spread out)
-- "dentist wednesday morning" = place on Wednesday
-- "dinner with friends friday night" = place on Friday
-- NEVER leave weekdays empty if work is mentioned
-- NEVER drop tasks
-
-MEAL RULES:
-- Only include meals if user mentions food, groceries, cooking, or preferences
-- Each day with meals must have 2–3 meals
-- If a day includes "dinner with friends" → include that as a meal
-- Meals should be realistic and varied
-- Avoid repeating the same meals too often
-- Respect food dislikes STRICTLY (e.g. no chicken)
-- If cooking is mentioned → include home-cooked meals
-
-LOGIC RULES:
-- Work days = busy
-- Gym days = busy
-- If a day has ANY tasks → it should not be empty
-- Weekends should include light structure (meals or simple activity)
-- Avoid completely empty days unless explicitly requested
-
-OUTPUT FORMAT (STRICT JSON ONLY):
-
-{
-  "monday": { "tasks": [], "meals": [], "busy": true/false },
-  "tuesday": { "tasks": [], "meals": [], "busy": true/false },
-  "wednesday": { "tasks": [], "meals": [], "busy": true/false },
-  "thursday": { "tasks": [], "meals": [], "busy": true/false },
-  "friday": { "tasks": [], "meals": [], "busy": true/false },
-  "saturday": { "tasks": [], "meals": [], "busy": true/false },
-  "sunday": { "tasks": [], "meals": [], "busy": true/false },
-  "groceryList": []
-}
-
-NO explanation. ONLY JSON.
-            `,
-          },
-          {
-            role: "user",
-            content: brainDump,
-          },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "{}";
-
-    let parsed;
-
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = { error: "Invalid JSON from AI" };
+    if (!brainDump || typeof brainDump !== "string") {
+      return res.status(400).json({ error: "brainDump is required" });
     }
 
-    res.status(200).json(parsed);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    let plan;
+
+    if (mode === "regenerateMeals") {
+      if (!existingPlan || typeof existingPlan !== "object") {
+        return res.status(400).json({ error: "existingPlan is required for regenerateMeals" });
+      }
+
+      const normalizedExistingPlan = normalizePlan(existingPlan);
+      const aiPlan = await callOpenRouter(
+        buildRegenerateMealsMessages(brainDump, normalizedExistingPlan)
+      );
+
+      plan = {
+        ...aiPlan,
+        monday: {
+          ...aiPlan.monday,
+          tasks: normalizedExistingPlan.monday.tasks,
+          busy: normalizedExistingPlan.monday.busy,
+        },
+        tuesday: {
+          ...aiPlan.tuesday,
+          tasks: normalizedExistingPlan.tuesday.tasks,
+          busy: normalizedExistingPlan.tuesday.busy,
+        },
+        wednesday: {
+          ...aiPlan.wednesday,
+          tasks: normalizedExistingPlan.wednesday.tasks,
+          busy: normalizedExistingPlan.wednesday.busy,
+        },
+        thursday: {
+          ...aiPlan.thursday,
+          tasks: normalizedExistingPlan.thursday.tasks,
+          busy: normalizedExistingPlan.thursday.busy,
+        },
+        friday: {
+          ...aiPlan.friday,
+          tasks: normalizedExistingPlan.friday.tasks,
+          busy: normalizedExistingPlan.friday.busy,
+        },
+        saturday: {
+          ...aiPlan.saturday,
+          tasks: normalizedExistingPlan.saturday.tasks,
+          busy: normalizedExistingPlan.saturday.busy,
+        },
+        sunday: {
+          ...aiPlan.sunday,
+          tasks: normalizedExistingPlan.sunday.tasks,
+          busy: normalizedExistingPlan.sunday.busy,
+        },
+        groceryList: safeArray(aiPlan.groceryList),
+      };
+    } else {
+      plan = await callOpenRouter(buildGenerateMessages(brainDump));
+    }
+
+    return res.status(200).json(normalizePlan(plan));
+  } catch (error) {
+    console.error("Plan API error:", error);
+
+    return res.status(500).json({
+      error: "Failed to generate plan",
+      details: error.message || "Unknown error",
+      fallback: EMPTY_PLAN,
+    });
   }
 }
