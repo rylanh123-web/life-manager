@@ -23,8 +23,8 @@
       --busyText: #3730a3;
       --lightBg: #f4f4f7;
       --lightText: #555555;
-      --successBg: #ecfdf3;
-      --successText: #027a48;
+      --warningBg: #fff7ed;
+      --warningText: #9a3412;
       --taskBg: #f8fafc;
       --mealBg: #fffaf0;
       --toastBg: rgba(17, 17, 17, 0.92);
@@ -141,7 +141,8 @@
     }
 
     button:disabled,
-    select:disabled {
+    select:disabled,
+    textarea:disabled {
       opacity: 0.55;
       cursor: not-allowed;
     }
@@ -162,6 +163,23 @@
       color: var(--muted);
       font-size: 13px;
       font-weight: 700;
+    }
+
+    .warning-banner {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--warningBg);
+      color: var(--warningText);
+      font-size: 14px;
+      line-height: 1.45;
+      border: 1px solid #fed7aa;
+      font-weight: 700;
+    }
+
+    .warning-banner.show {
+      display: block;
     }
 
     .plan-wrapper.hidden {
@@ -476,12 +494,15 @@
         <div class="toolbar-right">
           <button id="copyPlanBtn" class="ghost-btn" disabled>Copy Plan JSON</button>
           <button id="collapseAllBtn" class="ghost-btn" disabled>Collapse Editors</button>
+          <button id="clearSavedBtn" class="ghost-btn">Clear Saved Plan</button>
         </div>
       </div>
 
       <div class="status-bar">
         <div id="statusPill" class="status-pill">Ready</div>
       </div>
+
+      <div id="warningBanner" class="warning-banner"></div>
     </div>
 
     <div id="planWrapper" class="plan-wrapper hidden">
@@ -522,12 +543,19 @@
       sunday: "Reset for the week"
     };
 
+    const STORAGE_KEYS = {
+      plan: "lifeManagerPlan",
+      brainDump: "lifeManagerBrainDump"
+    };
+
     const brainDumpEl = document.getElementById("brainDump");
     const generateBtn = document.getElementById("generateBtn");
     const regenerateMealsBtn = document.getElementById("regenerateMealsBtn");
     const copyPlanBtn = document.getElementById("copyPlanBtn");
     const collapseAllBtn = document.getElementById("collapseAllBtn");
+    const clearSavedBtn = document.getElementById("clearSavedBtn");
     const statusPillEl = document.getElementById("statusPill");
+    const warningBannerEl = document.getElementById("warningBanner");
     const planWrapperEl = document.getElementById("planWrapper");
     const planSummaryEl = document.getElementById("planSummary");
     const daysGridEl = document.getElementById("daysGrid");
@@ -541,6 +569,11 @@
 
     function setStatus(message) {
       statusPillEl.textContent = message || "Ready";
+    }
+
+    function showWarning(message = "") {
+      warningBannerEl.textContent = message;
+      warningBannerEl.classList.toggle("show", !!message);
     }
 
     function showToast(message) {
@@ -564,6 +597,76 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function sanitizeDay(day) {
+      return {
+        tasks: Array.isArray(day?.tasks) ? day.tasks.filter(Boolean).map(String) : [],
+        meals: Array.isArray(day?.meals) ? day.meals.filter(Boolean).map(String) : [],
+        busy: Boolean(day?.busy)
+      };
+    }
+
+    function sanitizePlan(plan) {
+      if (!plan || typeof plan !== "object") return null;
+
+      return {
+        monday: sanitizeDay(plan.monday),
+        tuesday: sanitizeDay(plan.tuesday),
+        wednesday: sanitizeDay(plan.wednesday),
+        thursday: sanitizeDay(plan.thursday),
+        friday: sanitizeDay(plan.friday),
+        saturday: sanitizeDay(plan.saturday),
+        sunday: sanitizeDay(plan.sunday),
+        groceryList: Array.isArray(plan.groceryList) ? plan.groceryList.filter(Boolean).map(String) : [],
+        isFallback: Boolean(plan.isFallback)
+      };
+    }
+
+    function saveCurrentState() {
+      try {
+        if (currentPlan) {
+          localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(currentPlan));
+        }
+        localStorage.setItem(STORAGE_KEYS.brainDump, brainDumpEl.value || "");
+      } catch (error) {
+        console.error("Failed to save local state", error);
+      }
+    }
+
+    function loadSavedState() {
+      try {
+        const savedBrainDump = localStorage.getItem(STORAGE_KEYS.brainDump);
+        if (savedBrainDump) {
+          brainDumpEl.value = savedBrainDump;
+        }
+
+        const savedPlan = localStorage.getItem(STORAGE_KEYS.plan);
+        if (!savedPlan) return;
+
+        const parsed = JSON.parse(savedPlan);
+        const sanitized = sanitizePlan(parsed);
+
+        if (!sanitized) return;
+
+        currentPlan = sanitized;
+        renderPlan(currentPlan);
+
+        if (sanitized.isFallback) {
+          showWarning("This is a fallback plan from a failed API request. Refresh or regenerate when you're back online.");
+          setStatus("Loaded saved fallback plan.");
+        } else {
+          showWarning("");
+          setStatus("Loaded saved plan.");
+        }
+      } catch (error) {
+        console.error("Failed to load local state", error);
+      }
+    }
+
+    function clearSavedState() {
+      localStorage.removeItem(STORAGE_KEYS.plan);
+      localStorage.removeItem(STORAGE_KEYS.brainDump);
     }
 
     function renderList(items) {
@@ -602,10 +705,6 @@
       );
     }
 
-    function isLoading(mode, day = null) {
-      return currentLoadingMode === mode && currentLoadingDay === day;
-    }
-
     function anyLoading() {
       return !!currentLoadingMode;
     }
@@ -629,11 +728,11 @@
     }
 
     function renderPlan(plan) {
-      currentPlan = plan;
+      currentPlan = sanitizePlan(plan);
       daysGridEl.innerHTML = "";
 
       DAYS.forEach((day) => {
-        const dayData = plan[day] || { tasks: [], meals: [], busy: false };
+        const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
         const cardLoading = currentLoadingDay === day;
         const taskCount = dayData.tasks?.length || 0;
         const mealCount = dayData.meals?.length || 0;
@@ -728,8 +827,11 @@
               busy: Boolean(parsed.busy)
             };
 
+            currentPlan.isFallback = false;
             renderPlan(currentPlan);
+            saveCurrentState();
             setStatus(`${capitalize(day)} updated.`);
+            showWarning("");
             showToast(`${capitalize(day)} saved`);
           } catch (error) {
             setStatus(`Invalid JSON for ${capitalize(day)}. Use { "tasks": [], "meals": [], "busy": true }`);
@@ -743,9 +845,9 @@
         daysGridEl.appendChild(card);
       });
 
-      groceryListEl.innerHTML = renderGroceryList(plan.groceryList || []);
+      groceryListEl.innerHTML = renderGroceryList(currentPlan.groceryList || []);
       planWrapperEl.classList.remove("hidden");
-      updateSummary(plan);
+      updateSummary(currentPlan);
 
       regenerateMealsBtn.disabled = anyLoading() || !currentPlan;
       copyPlanBtn.disabled = !currentPlan;
@@ -782,7 +884,9 @@
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.details || data?.error || "Request failed");
+        const error = new Error(data?.details || data?.error || "Request failed");
+        error.fallback = data?.fallback || null;
+        throw error;
       }
 
       return data;
@@ -799,6 +903,7 @@
       try {
         setLoading("generate");
         setStatus("Building your week...");
+        showWarning("");
 
         const data = await postPlan({
           mode: "generate",
@@ -808,11 +913,23 @@
         currentLoadingMode = null;
         currentLoadingDay = null;
         renderPlan(data);
+        saveCurrentState();
         setStatus("Plan generated.");
         showToast("Week created");
       } catch (error) {
         console.error(error);
-        setStatus(error.message || "Something went wrong.");
+
+        if (error.fallback) {
+          currentLoadingMode = null;
+          currentLoadingDay = null;
+          renderPlan(error.fallback);
+          saveCurrentState();
+          showWarning("The API failed, so you're seeing an empty fallback plan. Try again in a moment.");
+          setStatus("Fallback plan loaded.");
+          showToast("API failed — fallback loaded");
+        } else {
+          setStatus(error.message || "Something went wrong.");
+        }
       } finally {
         setLoading(null, null);
       }
@@ -834,6 +951,7 @@
       try {
         setLoading("regenerateMeals");
         setStatus("Refreshing meals and grocery list...");
+        showWarning("");
 
         const data = await postPlan({
           mode: "regenerateMeals",
@@ -843,17 +961,29 @@
 
         currentPlan = {
           ...currentPlan,
-          ...data
+          ...sanitizePlan(data)
         };
 
         currentLoadingMode = null;
         currentLoadingDay = null;
         renderPlan(currentPlan);
+        saveCurrentState();
         setStatus("All meals refreshed. Tasks stayed the same.");
         showToast("Meals refreshed");
       } catch (error) {
         console.error(error);
-        setStatus(error.message || "Something went wrong.");
+
+        if (error.fallback) {
+          currentLoadingMode = null;
+          currentLoadingDay = null;
+          renderPlan(error.fallback);
+          saveCurrentState();
+          showWarning("The API failed during meal refresh, so an empty fallback plan was loaded.");
+          setStatus("Fallback plan loaded.");
+          showToast("API failed — fallback loaded");
+        } else {
+          setStatus(error.message || "Something went wrong.");
+        }
       } finally {
         setLoading(null, null);
       }
@@ -882,6 +1012,7 @@
         closeAllEditors();
         setLoading(mode, day);
         setStatus(`Refreshing ${modeLabelMap[mode]} for ${capitalize(day)}...`);
+        showWarning("");
 
         const data = await postPlan({
           mode,
@@ -892,17 +1023,29 @@
 
         currentPlan = {
           ...currentPlan,
-          ...data
+          ...sanitizePlan(data)
         };
 
         currentLoadingMode = null;
         currentLoadingDay = null;
         renderPlan(currentPlan);
+        saveCurrentState();
         setStatus(`${capitalize(day)} updated.`);
         showToast(`${capitalize(day)} refreshed`);
       } catch (error) {
         console.error(error);
-        setStatus(error.message || "Something went wrong.");
+
+        if (error.fallback) {
+          currentLoadingMode = null;
+          currentLoadingDay = null;
+          renderPlan(error.fallback);
+          saveCurrentState();
+          showWarning(`The API failed while refreshing ${capitalize(day)}, so an empty fallback plan was loaded.`);
+          setStatus("Fallback plan loaded.");
+          showToast("API failed — fallback loaded");
+        } else {
+          setStatus(error.message || "Something went wrong.");
+        }
       } finally {
         setLoading(null, null);
       }
@@ -928,6 +1071,34 @@
       closeAllEditors();
       setStatus("All editors collapsed.");
     });
+
+    clearSavedBtn.addEventListener("click", () => {
+      clearSavedState();
+      currentPlan = null;
+      currentLoadingMode = null;
+      currentLoadingDay = null;
+      daysGridEl.innerHTML = "";
+      groceryListEl.innerHTML = "";
+      planSummaryEl.innerHTML = "";
+      planWrapperEl.classList.add("hidden");
+      brainDumpEl.value = "";
+      regenerateMealsBtn.disabled = true;
+      copyPlanBtn.disabled = true;
+      collapseAllBtn.disabled = true;
+      showWarning("");
+      setStatus("Saved plan cleared.");
+      showToast("Saved state cleared");
+    });
+
+    brainDumpEl.addEventListener("input", () => {
+      try {
+        localStorage.setItem(STORAGE_KEYS.brainDump, brainDumpEl.value || "");
+      } catch (error) {
+        console.error("Failed to save brain dump", error);
+      }
+    });
+
+    loadSavedState();
   </script>
 </body>
 </html>
