@@ -24,7 +24,8 @@
     }
 
     .input-card,
-    .grocery-card {
+    .grocery-card,
+    .modal-card {
       background: white;
       border-radius: 14px;
       padding: 20px;
@@ -58,6 +59,23 @@
       background: #1d4ed8;
     }
 
+    .secondary-btn {
+      background: #e5e7eb;
+      color: #111827;
+      margin-left: 10px;
+    }
+
+    .secondary-btn:hover {
+      background: #d1d5db;
+    }
+
+    .small-btn {
+      font-size: 14px;
+      padding: 10px 14px;
+      margin-top: 12px;
+      width: 100%;
+    }
+
     .status {
       margin-top: 14px;
       font-size: 16px;
@@ -87,6 +105,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
+      gap: 10px;
     }
 
     .day-title {
@@ -102,6 +121,7 @@
       border-radius: 999px;
       background: #e5e7eb;
       color: #374151;
+      white-space: nowrap;
     }
 
     .badge.busy {
@@ -147,6 +167,52 @@
       white-space: pre-wrap;
     }
 
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 700px;
+      margin: 0;
+    }
+
+    .modal-card h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    .modal-card label {
+      display: block;
+      font-weight: bold;
+      margin: 12px 0 8px;
+      color: #374151;
+    }
+
+    .modal-card textarea {
+      min-height: 120px;
+      font-size: 16px;
+    }
+
+    .busy-toggle {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+    }
+
     @media (max-width: 700px) {
       h1 {
         font-size: 36px;
@@ -163,7 +229,11 @@
     <h1>🗓️ Life Manager</h1>
 
     <div class="input-card">
-      <textarea id="input" placeholder="Type your week..."></textarea>
+      <textarea id="input" placeholder="Example:
+- Work 9–5 Mon–Fri
+- Gym 3x
+- Need groceries
+- Dinner Friday with friend"></textarea>
       <button onclick="generate()">Generate Plan</button>
       <div class="status" id="status"></div>
       <div class="error hidden" id="error"></div>
@@ -179,7 +249,30 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-card">
+      <h2 id="editTitle">Edit Day</h2>
+
+      <label for="editTasks">Tasks (one per line)</label>
+      <textarea id="editTasks"></textarea>
+
+      <label for="editMeals">Meals (one per line)</label>
+      <textarea id="editMeals"></textarea>
+
+      <div class="busy-toggle">
+        <input type="checkbox" id="editBusy" />
+        <label for="editBusy" style="margin: 0;">Mark as busy</label>
+      </div>
+
+      <button onclick="saveDayEdits()">Save Day</button>
+      <button class="secondary-btn" onclick="closeEditModal()">Cancel</button>
+    </div>
+  </div>
+
   <script>
+    let currentPlan = null;
+    let editingDay = null;
+
     async function generate() {
       const input = document.getElementById("input").value.trim();
       const status = document.getElementById("status");
@@ -206,7 +299,10 @@
           throw new Error(data.error || "Something went wrong");
         }
 
-        renderPlan(data);
+        currentPlan = data;
+        localStorage.setItem("lifeManagerPlan", JSON.stringify(currentPlan));
+
+        renderPlan(currentPlan);
         status.textContent = "Plan generated successfully.";
         results.classList.remove("hidden");
       } catch (err) {
@@ -235,7 +331,6 @@
 
       days.forEach(day => {
         const dayData = plan[day] || { tasks: [], meals: [], busy: false };
-
         const card = document.createElement("div");
         card.className = "day-card" + (dayData.busy ? " busy" : "");
 
@@ -262,6 +357,8 @@
               ? `<ul>${dayData.meals.map(meal => `<li>${escapeHtml(meal)}</li>`).join("")}</ul>`
               : `<p>No meals</p>`
           }
+
+          <button class="small-btn secondary-btn" onclick="openEditModal('${day}')">Edit Day</button>
         `;
 
         daysGrid.appendChild(card);
@@ -281,11 +378,71 @@
       }
     }
 
+    function openEditModal(day) {
+      if (!currentPlan) return;
+
+      editingDay = day;
+      const title = day.charAt(0).toUpperCase() + day.slice(1);
+      const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
+
+      document.getElementById("editTitle").textContent = `Edit ${title}`;
+      document.getElementById("editTasks").value = (dayData.tasks || []).join("\n");
+      document.getElementById("editMeals").value = (dayData.meals || []).join("\n");
+      document.getElementById("editBusy").checked = !!dayData.busy;
+
+      document.getElementById("editModal").classList.add("show");
+    }
+
+    function closeEditModal() {
+      editingDay = null;
+      document.getElementById("editModal").classList.remove("show");
+    }
+
+    function saveDayEdits() {
+      if (!currentPlan || !editingDay) return;
+
+      const tasks = document.getElementById("editTasks").value
+        .split("\n")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+      const meals = document.getElementById("editMeals").value
+        .split("\n")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+      const busy = document.getElementById("editBusy").checked;
+
+      currentPlan[editingDay] = {
+        tasks,
+        meals,
+        busy
+      };
+
+      localStorage.setItem("lifeManagerPlan", JSON.stringify(currentPlan));
+      renderPlan(currentPlan);
+      closeEditModal();
+    }
+
     function escapeHtml(text) {
       const div = document.createElement("div");
       div.textContent = text;
       return div.innerHTML;
     }
+
+    window.addEventListener("load", () => {
+      const savedPlan = localStorage.getItem("lifeManagerPlan");
+      if (savedPlan) {
+        try {
+          currentPlan = JSON.parse(savedPlan);
+          renderPlan(currentPlan);
+          document.getElementById("results").classList.remove("hidden");
+          document.getElementById("status").textContent = "Loaded your saved plan.";
+        } catch {
+          localStorage.removeItem("lifeManagerPlan");
+        }
+      }
+    });
   </script>
 </body>
 </html>
