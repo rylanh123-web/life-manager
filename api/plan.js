@@ -102,7 +102,7 @@ async function callOpenRouter(messages) {
     throw new Error("Model did not return valid JSON");
   }
 
-  return normalizePlan(parsed);
+  return parsed;
 }
 
 function buildGenerateMessages(brainDump) {
@@ -208,12 +208,12 @@ The final output must preserve the exact tasks from the existing plan.
   ];
 }
 
-function buildRegenerateDayMessages(brainDump, existingPlan, targetDay) {
+function buildRegenerateDayMealsMessages(brainDump, existingPlan, targetDay) {
   return [
     {
       role: "system",
       content: `
-You are updating ONE DAY inside a weekly plan for a real product called Life Manager.
+You are updating ONLY THE MEALS for ONE DAY inside a weekly plan for a real product called Life Manager.
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -221,14 +221,12 @@ Return ONLY valid JSON with this exact shape:
 }
 
 Critical rules:
-- ONLY regenerate the requested day
+- ONLY regenerate meals for the requested day
 - KEEP that day's tasks exactly the same as the existing plan
 - DO NOT add tasks
 - DO NOT remove tasks
 - DO NOT rewrite task text
-- You may regenerate meals for that day
-- You may update busy only if clearly needed based on the unchanged tasks
-- DO NOT touch any other days
+- Keep busy the same unless clearly needed by the unchanged day structure
 - NO extra text
 - ONLY JSON
 
@@ -238,6 +236,84 @@ Meal rules:
 - Example: if user says "I hate chicken", do not include chicken
 - If the user mentioned food/groceries/cooking/preferences, provide 2-3 meals for the day when appropriate
 - If the day includes an event meal like dinner with friends, that counts as a meal
+      `.trim(),
+    },
+    {
+      role: "user",
+      content: `Original brain dump:\n${brainDump}\n\nTarget day:\n${targetDay}\n\nExisting full plan:\n${JSON.stringify(existingPlan, null, 2)}\n\nExisting ${targetDay} data:\n${JSON.stringify(existingPlan[targetDay], null, 2)}`,
+    },
+  ];
+}
+
+function buildRegenerateDayTasksMessages(brainDump, existingPlan, targetDay) {
+  return [
+    {
+      role: "system",
+      content: `
+You are updating ONLY THE TASKS for ONE DAY inside a weekly plan for a real product called Life Manager.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "day": { "tasks": [], "meals": [], "busy": false }
+}
+
+Critical rules:
+- ONLY regenerate tasks for the requested day
+- KEEP that day's meals exactly the same as the existing plan
+- DO NOT add meals
+- DO NOT remove meals
+- DO NOT rewrite meal text
+- Tasks must still reflect the user's original brain dump
+- NEVER invent weird or robotic tasks
+- Make the day practical and usable in real life
+- You may update busy if needed based on the new task load
+- NO extra text
+- ONLY JSON
+
+Task rules:
+- Preserve the meaning of the user's week
+- Tasks should be concise, natural, and actionable
+- Do not duplicate obvious tasks unnecessarily
+- Do not leave the day empty unless that makes clear sense
+      `.trim(),
+    },
+    {
+      role: "user",
+      content: `Original brain dump:\n${brainDump}\n\nTarget day:\n${targetDay}\n\nExisting full plan:\n${JSON.stringify(existingPlan, null, 2)}\n\nExisting ${targetDay} data:\n${JSON.stringify(existingPlan[targetDay], null, 2)}`,
+    },
+  ];
+}
+
+function buildRegenerateWholeDayMessages(brainDump, existingPlan, targetDay) {
+  return [
+    {
+      role: "system",
+      content: `
+You are regenerating ONE FULL DAY inside a weekly plan for a real product called Life Manager.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "day": { "tasks": [], "meals": [], "busy": false }
+}
+
+Critical rules:
+- ONLY regenerate the requested day
+- DO NOT touch any other days
+- The new day must still fit the user's original brain dump and the overall weekly plan
+- Make the day feel human, practical, realistic, and usable
+- NO extra text
+- ONLY JSON
+
+Task rules:
+- Tasks should reflect the user's real obligations and goals
+- Use concise, natural wording
+- Avoid robotic filler
+
+Meal rules:
+- Respect food dislikes and restrictions exactly
+- Example: if user says "I hate chicken", do not include chicken
+- If the day should include meals, provide 2-3 realistic meals
+- If the user did not mention food/groceries/cooking/preferences, meals can remain empty
       `.trim(),
     },
     {
@@ -276,6 +352,14 @@ Critical rules:
   ];
 }
 
+async function rebuildGroceryList(brainDump, plan) {
+  const groceryResponse = await callOpenRouter(
+    buildRebuildGroceryMessages(brainDump, plan)
+  );
+
+  return safeArray(groceryResponse?.groceryList);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -305,9 +389,10 @@ export default async function handler(req, res) {
       }
 
       const normalizedExistingPlan = normalizePlan(existingPlan);
-      const aiPlan = await callOpenRouter(
+      const aiRaw = await callOpenRouter(
         buildRegenerateMealsMessages(brainDump, normalizedExistingPlan)
       );
+      const aiPlan = normalizePlan(aiRaw);
 
       plan = {
         ...aiPlan,
@@ -348,42 +433,78 @@ export default async function handler(req, res) {
         },
         groceryList: safeArray(aiPlan.groceryList),
       };
-    } else if (mode === "regenerateDay") {
+    } else if (
+      mode === "regenerateDayMeals" ||
+      mode === "regenerateDayTasks" ||
+      mode === "regenerateWholeDay"
+    ) {
       if (!existingPlan || typeof existingPlan !== "object") {
-        return res.status(400).json({ error: "existingPlan is required for regenerateDay" });
+        return res.status(400).json({ error: "existingPlan is required for day regeneration" });
       }
 
       if (!targetDay || !DAYS.includes(targetDay)) {
-        return res.status(400).json({ error: "valid targetDay is required for regenerateDay" });
+        return res.status(400).json({ error: "valid targetDay is required" });
       }
 
       const normalizedExistingPlan = normalizePlan(existingPlan);
+      let dayResponse;
 
-      const dayResponse = await callOpenRouter(
-        buildRegenerateDayMessages(brainDump, normalizedExistingPlan, targetDay)
-      );
+      if (mode === "regenerateDayMeals") {
+        dayResponse = await callOpenRouter(
+          buildRegenerateDayMealsMessages(brainDump, normalizedExistingPlan, targetDay)
+        );
+      } else if (mode === "regenerateDayTasks") {
+        dayResponse = await callOpenRouter(
+          buildRegenerateDayTasksMessages(brainDump, normalizedExistingPlan, targetDay)
+        );
+      } else {
+        dayResponse = await callOpenRouter(
+          buildRegenerateWholeDayMessages(brainDump, normalizedExistingPlan, targetDay)
+        );
+      }
 
       const aiDay = safeDay(dayResponse?.day);
 
+      const updatedDay =
+        mode === "regenerateDayMeals"
+          ? {
+              tasks: normalizedExistingPlan[targetDay].tasks,
+              meals: aiDay.meals,
+              busy:
+                typeof aiDay.busy === "boolean"
+                  ? aiDay.busy
+                  : normalizedExistingPlan[targetDay].busy,
+            }
+          : mode === "regenerateDayTasks"
+          ? {
+              tasks: aiDay.tasks,
+              meals: normalizedExistingPlan[targetDay].meals,
+              busy:
+                typeof aiDay.busy === "boolean"
+                  ? aiDay.busy
+                  : normalizedExistingPlan[targetDay].busy,
+            }
+          : {
+              tasks: aiDay.tasks,
+              meals: aiDay.meals,
+              busy:
+                typeof aiDay.busy === "boolean"
+                  ? aiDay.busy
+                  : normalizedExistingPlan[targetDay].busy,
+            };
+
       const updatedPlan = {
         ...normalizedExistingPlan,
-        [targetDay]: {
-          tasks: normalizedExistingPlan[targetDay].tasks,
-          meals: aiDay.meals,
-          busy: typeof aiDay.busy === "boolean" ? aiDay.busy : normalizedExistingPlan[targetDay].busy,
-        },
+        [targetDay]: updatedDay,
       };
-
-      const groceryResponse = await callOpenRouter(
-        buildRebuildGroceryMessages(brainDump, updatedPlan)
-      );
 
       plan = {
         ...updatedPlan,
-        groceryList: safeArray(groceryResponse?.groceryList),
+        groceryList: await rebuildGroceryList(brainDump, updatedPlan),
       };
     } else {
-      plan = await callOpenRouter(buildGenerateMessages(brainDump));
+      const generatedRaw = await callOpenRouter(buildGenerateMessages(brainDump));
+      plan = normalizePlan(generatedRaw);
     }
 
     return res.status(200).json(normalizePlan(plan));
