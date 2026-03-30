@@ -78,6 +78,14 @@
       border: 1px solid #ddd;
     }
 
+    .smart-btn {
+      background: #eef2ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
     button:disabled,
     textarea:disabled,
     input:disabled {
@@ -105,6 +113,29 @@
 
     .warning.show {
       display: block;
+    }
+
+    .smart-section {
+      background: white;
+      border: 1px solid #e8e8ef;
+      padding: 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+
+    .smart-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #666;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .smart-chip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .card {
@@ -189,6 +220,49 @@
     .empty-text {
       color: #777;
       font-style: italic;
+    }
+
+    .grocery-section {
+      margin-bottom: 10px;
+      border: 1px solid #ececf3;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .grocery-toggle {
+      width: 100%;
+      text-align: left;
+      background: #fafafe;
+      color: #111;
+      border: none;
+      border-bottom: 1px solid #ececf3;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 0;
+    }
+
+    .grocery-toggle.collapsed {
+      border-bottom: none;
+    }
+
+    .grocery-content {
+      padding: 12px 14px;
+      display: block;
+    }
+
+    .grocery-content.collapsed {
+      display: none;
+    }
+
+    .grocery-count {
+      color: #666;
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .modal-backdrop {
@@ -291,11 +365,13 @@
         padding: 14px;
       }
 
-      .button-row {
+      .button-row,
+      .smart-chip-row {
         flex-direction: column;
       }
 
-      .button-row button {
+      .button-row button,
+      .smart-chip-row button {
         width: 100%;
       }
 
@@ -313,7 +389,7 @@
   <div class="container">
     <h1>Life Manager</h1>
     <div class="subtext">
-      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, click meals for simple details, and copy the week in readable text.
+      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, use one-tap smart edits, click meals for simple details, and copy the week in readable text.
     </div>
 
     <textarea id="brainDump" placeholder="Dump your week here... work schedule, gym, appointments, groceries, food dislikes, events, everything."></textarea>
@@ -321,6 +397,18 @@
     <div class="button-row">
       <button id="generateBtn" class="primary-btn">Generate</button>
       <button id="copyReadableBtn" class="ghost-btn" disabled>Copy Readable Plan</button>
+    </div>
+
+    <div class="smart-section">
+      <div class="smart-title">Smart Edits</div>
+      <div class="smart-chip-row">
+        <button class="smart-btn" data-smart-edit="make this week easier" type="button">Make week easier</button>
+        <button class="smart-btn" data-smart-edit="make meals cheaper this week" type="button">Make meals cheaper</button>
+        <button class="smart-btn" data-smart-edit="make lunches higher protein" type="button">Higher protein lunches</button>
+        <button class="smart-btn" data-smart-edit="reduce cooking time this week" type="button">Reduce cooking time</button>
+        <button class="smart-btn" data-smart-edit="make weekdays lighter" type="button">Make weekdays lighter</button>
+        <button class="smart-btn" data-smart-edit="add more variety to meals" type="button">More meal variety</button>
+      </div>
     </div>
 
     <input id="quickEditInput" placeholder="make Thursday lighter, swap dinner to tacos" />
@@ -361,6 +449,16 @@
       mealDetailCache: "lifeManagerMealDetailCache"
     };
 
+    const GROCERY_SECTIONS = ["produce", "protein", "dairy", "pantry", "frozen", "other"];
+    const GROCERY_LABELS = {
+      produce: "Produce",
+      protein: "Protein",
+      dairy: "Dairy",
+      pantry: "Pantry",
+      frozen: "Frozen",
+      other: "Other"
+    };
+
     const brainDumpEl = document.getElementById("brainDump");
     const quickEditInputEl = document.getElementById("quickEditInput");
     const generateBtn = document.getElementById("generateBtn");
@@ -395,6 +493,52 @@
         .replaceAll("'", "&#039;");
     }
 
+    function normalizeGroceryList(groceryList) {
+      if (Array.isArray(groceryList)) {
+        return {
+          produce: [],
+          protein: [],
+          dairy: [],
+          pantry: groceryList.filter(Boolean).map(String),
+          frozen: [],
+          other: []
+        };
+      }
+
+      return {
+        produce: Array.isArray(groceryList?.produce) ? groceryList.produce.filter(Boolean).map(String) : [],
+        protein: Array.isArray(groceryList?.protein) ? groceryList.protein.filter(Boolean).map(String) : [],
+        dairy: Array.isArray(groceryList?.dairy) ? groceryList.dairy.filter(Boolean).map(String) : [],
+        pantry: Array.isArray(groceryList?.pantry) ? groceryList.pantry.filter(Boolean).map(String) : [],
+        frozen: Array.isArray(groceryList?.frozen) ? groceryList.frozen.filter(Boolean).map(String) : [],
+        other: Array.isArray(groceryList?.other) ? groceryList.other.filter(Boolean).map(String) : []
+      };
+    }
+
+    function normalizePlan(plan) {
+      if (!plan || typeof plan !== "object") return null;
+
+      return {
+        monday: normalizeDay(plan.monday),
+        tuesday: normalizeDay(plan.tuesday),
+        wednesday: normalizeDay(plan.wednesday),
+        thursday: normalizeDay(plan.thursday),
+        friday: normalizeDay(plan.friday),
+        saturday: normalizeDay(plan.saturday),
+        sunday: normalizeDay(plan.sunday),
+        groceryList: normalizeGroceryList(plan.groceryList),
+        isFallback: Boolean(plan.isFallback)
+      };
+    }
+
+    function normalizeDay(day) {
+      return {
+        tasks: Array.isArray(day?.tasks) ? day.tasks.filter(Boolean).map(String) : [],
+        meals: Array.isArray(day?.meals) ? day.meals.filter(Boolean).map(String) : [],
+        busy: Boolean(day?.busy)
+      };
+    }
+
     function saveState() {
       try {
         if (currentPlan) {
@@ -427,12 +571,14 @@
 
         if (savedPlan) {
           try {
-            currentPlan = JSON.parse(savedPlan);
-            render();
-            copyReadableBtn.disabled = false;
+            currentPlan = normalizePlan(JSON.parse(savedPlan));
+            if (currentPlan) {
+              render();
+              copyReadableBtn.disabled = false;
 
-            if (currentPlan?.isFallback) {
-              showWarning("You are viewing a fallback plan from a previous API failure.");
+              if (currentPlan?.isFallback) {
+                showWarning("You are viewing a fallback plan from a previous API failure.");
+              }
             }
           } catch (error) {
             console.error("Failed to parse saved plan", error);
@@ -450,6 +596,10 @@
       applyEditBtn.disabled = loading;
       copyReadableBtn.disabled = loading || !currentPlan;
       undoBtn.disabled = loading || !lastPlan;
+
+      document.querySelectorAll(".smart-btn").forEach(btn => {
+        btn.disabled = loading || !currentPlan;
+      });
 
       generateBtn.textContent = loading && label === "generate" ? "Loading..." : "Generate";
       applyEditBtn.textContent = loading && label === "quickEdit" ? "Loading..." : "Apply Edit";
@@ -484,6 +634,30 @@
       `;
     }
 
+    function renderGrocerySections(groceryList) {
+      const normalized = normalizeGroceryList(groceryList);
+
+      return GROCERY_SECTIONS.map(section => {
+        const items = normalized[section] || [];
+        const collapsed = items.length === 0 ? "collapsed" : "";
+        const itemsHtml = items.length
+          ? `<ul>${renderList(items)}</ul>`
+          : `<div class="empty-text">No items in this section.</div>`;
+
+        return `
+          <div class="grocery-section">
+            <button class="grocery-toggle ${collapsed}" data-section="${section}" type="button">
+              <span>${GROCERY_LABELS[section]}</span>
+              <span class="grocery-count">${items.length}</span>
+            </button>
+            <div class="grocery-content ${collapsed}" data-section-content="${section}">
+              ${itemsHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     function attachMealChipEvents() {
       const mealChips = document.querySelectorAll(".meal-chip");
 
@@ -496,27 +670,39 @@
       });
     }
 
+    function attachGroceryToggleEvents() {
+      const toggles = document.querySelectorAll(".grocery-toggle");
+
+      toggles.forEach(toggle => {
+        toggle.addEventListener("click", () => {
+          const section = toggle.getAttribute("data-section");
+          const content = document.querySelector(`[data-section-content="${section}"]`);
+          if (!content) return;
+
+          const willCollapse = !content.classList.contains("collapsed");
+          content.classList.toggle("collapsed", willCollapse);
+          toggle.classList.toggle("collapsed", willCollapse);
+        });
+      });
+    }
+
     function render() {
       if (!currentPlan) {
         planEl.innerHTML = "";
         copyReadableBtn.disabled = true;
+        document.querySelectorAll(".smart-btn").forEach(btn => {
+          btn.disabled = true;
+        });
         return;
       }
 
-      const dayOrder = [
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-        "sunday"
-      ];
+      const plan = normalizePlan(currentPlan);
+      const dayOrder = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
       let html = "";
 
       for (const day of dayOrder) {
-        const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
+        const dayData = plan[day] || { tasks: [], meals: [], busy: false };
 
         html += `
           <div class="card">
@@ -537,13 +723,18 @@
       html += `
         <div class="section-title">Grocery List</div>
         <div class="card">
-          <ul>${renderList(currentPlan.groceryList || [])}</ul>
+          ${renderGrocerySections(plan.groceryList)}
         </div>
       `;
 
       planEl.innerHTML = html;
       copyReadableBtn.disabled = false;
+      document.querySelectorAll(".smart-btn").forEach(btn => {
+        btn.disabled = false;
+      });
+
       attachMealChipEvents();
+      attachGroceryToggleEvents();
     }
 
     function clearMealDetailsCache() {
@@ -587,7 +778,7 @@
           brainDump
         });
 
-        currentPlan = data;
+        currentPlan = normalizePlan(data);
         lastPlan = null;
         undoBtn.disabled = true;
         clearMealDetailsCache();
@@ -595,7 +786,7 @@
         render();
         saveState();
 
-        if (data?.isFallback) {
+        if (currentPlan?.isFallback) {
           showWarning("The API failed, so a fallback plan was loaded.");
         }
 
@@ -604,7 +795,7 @@
         console.error(error);
 
         if (error.fallback) {
-          currentPlan = error.fallback;
+          currentPlan = normalizePlan(error.fallback);
           lastPlan = null;
           clearMealDetailsCache();
           render();
@@ -620,8 +811,8 @@
       }
     }
 
-    async function applyQuickEdit() {
-      const input = quickEditInputEl.value.trim();
+    async function applyQuickEdit(prefilledInstruction = "") {
+      const input = (prefilledInstruction || quickEditInputEl.value || "").trim();
 
       if (!input) {
         setStatus("Enter an edit first.");
@@ -633,10 +824,14 @@
         return;
       }
 
+      if (prefilledInstruction) {
+        quickEditInputEl.value = prefilledInstruction;
+      }
+
       try {
         lastPlan = JSON.parse(JSON.stringify(currentPlan));
         setLoadingState(true, "quickEdit");
-        setStatus("Applying edit...");
+        setStatus("Applying smart edit...");
         showWarning("");
 
         const data = await postPlan({
@@ -646,13 +841,13 @@
           editInstruction: input
         });
 
-        currentPlan = data;
+        currentPlan = normalizePlan(data);
         clearMealDetailsCache();
         render();
         saveState();
         undoBtn.disabled = false;
 
-        if (data?.isFallback) {
+        if (currentPlan?.isFallback) {
           showWarning("The API failed, so a fallback empty plan was loaded.");
         }
 
@@ -661,7 +856,7 @@
         console.error(error);
 
         if (error.fallback) {
-          currentPlan = error.fallback;
+          currentPlan = normalizePlan(error.fallback);
           clearMealDetailsCache();
           render();
           saveState();
@@ -679,7 +874,7 @@
     function undoEdit() {
       if (!lastPlan) return;
 
-      currentPlan = lastPlan;
+      currentPlan = normalizePlan(lastPlan);
       lastPlan = null;
       clearMealDetailsCache();
       render();
@@ -764,6 +959,11 @@
       }
     }
 
+    function flattenGroceryList(groceryList) {
+      const normalized = normalizeGroceryList(groceryList);
+      return GROCERY_SECTIONS.flatMap(section => normalized[section] || []);
+    }
+
     async function copyReadablePlan() {
       if (!currentPlan) return;
 
@@ -798,8 +998,10 @@
       }
 
       text += "Grocery List:\n";
-      if (currentPlan.groceryList.length) {
-        currentPlan.groceryList.forEach(item => {
+      const flatGrocery = flattenGroceryList(currentPlan.groceryList);
+
+      if (flatGrocery.length) {
+        flatGrocery.forEach(item => {
           text += `- ${item}\n`;
         });
       } else {
@@ -820,10 +1022,17 @@
     }
 
     generateBtn.addEventListener("click", generatePlan);
-    applyEditBtn.addEventListener("click", applyQuickEdit);
+    applyEditBtn.addEventListener("click", () => applyQuickEdit());
     undoBtn.addEventListener("click", undoEdit);
     copyReadableBtn.addEventListener("click", copyReadablePlan);
     closeMealModalBtn.addEventListener("click", closeMealModal);
+
+    document.querySelectorAll(".smart-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const instruction = btn.getAttribute("data-smart-edit") || "";
+        applyQuickEdit(instruction);
+      });
+    });
 
     mealModalBackdropEl.addEventListener("click", (event) => {
       if (event.target === mealModalBackdropEl) {
@@ -842,6 +1051,7 @@
     });
 
     loadState();
+    render();
   </script>
 </body>
 </html>
