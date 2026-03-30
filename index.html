@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Life Manager</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel-2: #1f2430;
+      --border: rgba(255,255,255,0.08);
+      --text: #f4f7fb;
+      --muted: #a7b0c0;
+      --accent: #8bc5ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: linear-gradient(180deg, #0d1016, #111621);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .hidden { display: none !important; }
+
+    input, textarea, button {
+      font: inherit;
+    }
+
+    input, textarea {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    .btn {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #a7d6ff, #83c3ff);
+      color: #0c1422;
+      border: 0;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .day {
+      margin-top: 10px;
+      padding: 12px;
+      background: var(--panel-2);
+      border-radius: 12px;
+    }
+
+    .meal {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .chip {
+      background: rgba(139,197,255,.1);
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-inner {
+      background: #121722;
+      padding: 16px;
+      border-radius: 12px;
+      width: min(520px, 100%);
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="authCard" class="card">
+      <h2>Login / Register</h2>
+      <input id="emailInput" type="email" placeholder="email" />
+      <div style="height:10px"></div>
+      <input id="passwordInput" type="password" placeholder="password" />
+      <div class="row" style="margin-top:12px;">
+        <button class="btn" id="loginBtn" type="button">Login</button>
+        <button class="btn" id="registerBtn" type="button">Register</button>
+      </div>
+    </div>
+
+    <div id="familyCard" class="card hidden">
+      <h2>Family</h2>
+      <div class="row">
+        <button class="btn" id="createFamilyBtn" type="button">Create Family</button>
+        <input id="familyCodeInput" placeholder="Join code" style="max-width:220px;" />
+        <button class="btn" id="joinFamilyBtn" type="button">Join Family</button>
+      </div>
+      <div id="familyInfo" class="muted" style="margin-top:12px;"></div>
+    </div>
+
+    <div id="plannerCard" class="card hidden">
+      <h1>Turn chaos into a clear week</h1>
+      <textarea id="brainDumpInput" placeholder="Busy Monday. Gym 3x. Easy dinners. No mushrooms. Grocery run."></textarea>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-primary" id="generateBtn" type="button">Generate Plan</button>
+        <button class="btn" id="fasterBtn" type="button">Make dinners faster</button>
+        <button class="btn" id="cheaperBtn" type="button">Make meals cheaper</button>
+        <button class="btn" id="proteinBtn" type="button">Add more protein</button>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <input id="customEditInput" placeholder="Custom edit" style="max-width:320px;" />
+        <button class="btn" id="applyEditBtn" type="button">Apply Edit</button>
+        <button class="btn" id="exportBtn" type="button">Export Grocery</button>
+      </div>
+
+      <div id="statusText" class="muted" style="margin-top:12px;"></div>
+    </div>
+
+    <div id="planCard" class="card hidden">
+      <h2>Your Week</h2>
+      <div id="planOutput"></div>
+    </div>
+
+    <div id="groceryCard" class="card hidden">
+      <h2>Grocery List</h2>
+      <div id="groceryOutput"></div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-inner">
+      <h3 id="modalTitle">Meal Details</h3>
+      <pre id="modalBody"></pre>
+      <button class="btn" id="closeModalBtn" type="button">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      token: localStorage.getItem("lm.token") || "",
+      user: JSON.parse(localStorage.getItem("lm.user") || "null"),
+      family: JSON.parse(localStorage.getItem("lm.family") || "null"),
+      plan: JSON.parse(localStorage.getItem("lm.plan") || "null")
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function saveState() {
+      if (state.token) localStorage.setItem("lm.token", state.token);
+      else localStorage.removeItem("lm.token");
+
+      if (state.user) localStorage.setItem("lm.user", JSON.stringify(state.user));
+      else localStorage.removeItem("lm.user");
+
+      if (state.family) localStorage.setItem("lm.family", JSON.stringify(state.family));
+      else localStorage.removeItem("lm.family");
+
+      if (state.plan) localStorage.setItem("lm.plan", JSON.stringify(state.plan));
+      else localStorage.removeItem("lm.plan");
+    }
+
+    async function api(path, method = "GET", body) {
+      const res = await fetch(path, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: state.token || ""
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.error || `Request failed: ${res.status}`);
+      }
+
+      return data;
+    }
+
+    function setStatus(msg) {
+      $("statusText").textContent = msg || "";
+    }
+
+    function renderAuthState() {
+      const loggedIn = !!state.token;
+
+      $("authCard").classList.toggle("hidden", loggedIn);
+      $("familyCard").classList.toggle("hidden", !loggedIn);
+      $("plannerCard").classList.toggle("hidden", !loggedIn);
+      $("planCard").classList.toggle("hidden", !state.plan);
+      $("groceryCard").classList.toggle("hidden", !state.plan);
+
+      if (state.family) {
+        $("familyInfo").textContent = `Family code: ${state.family.code || "N/A"} | Members: ${(state.family.members || []).join(", ")}`;
+      } else {
+        $("familyInfo").textContent = "No family yet.";
+      }
+    }
+
+    function renderPlan() {
+      const plan = state.plan;
+      if (!plan) {
+        $("planOutput").innerHTML = "";
+        $("groceryOutput").innerHTML = "";
+        renderAuthState();
+        return;
+      }
+
+      const days = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+      $("planOutput").innerHTML = days.map(day => {
+        const d = plan[day] || { tasks: [], meals: [], busy: false };
+        const tasks = (d.tasks || []).map(t => `<li>${escapeHtml(t)}</li>`).join("");
+        const meals = (d.meals || []).map(meal => `
+          <div class="meal">
+            <span class="chip">${escapeHtml(meal)}</span>
+            <button class="btn" type="button" onclick="viewMealDetails('${day}', '${escapeJs(meal)}')">Details</button>
+          </div>
+        `).join("");
+
+        return `
+          <div class="day">
+            <h3 style="margin:0 0 8px;">${capitalize(day)} ${d.busy ? "• Busy" : ""}</h3>
+            <div><strong>Meals</strong></div>
+            ${meals || '<div class="muted">No meals</div>'}
+            <div style="margin-top:10px;"><strong>Tasks</strong></div>
+            ${tasks ? `<ul>${tasks}</ul>` : '<div class="muted">No tasks</div>'}
+          </div>
+        `;
+      }).join("");
+
+      const g = plan.groceryList || {};
+      $("groceryOutput").innerHTML = ["produce","protein","dairy","pantry","frozen","other"].map(section => {
+        const items = Array.isArray(g[section]) ? g[section] : [];
+        return `
+          <div class="day">
+            <h3 style="margin:0 0 8px;">${capitalize(section)}</h3>
+            ${items.length ? `<ul>${items.map(i => `<li>${escapeHtml(i)}</li>`).join("")}</ul>` : '<div class="muted">No items</div>'}
+          </div>
+        `;
+      }).join("");
+
+      renderAuthState();
+    }
+
+    function capitalize(s) {
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeJs(str) {
+      return String(str).replaceAll("\\", "\\\\").replaceAll("'", "\\'");
+    }
+
+    async function register() {
+      try {
+        setStatus("Registering...");
+        const email = $("emailInput").value.trim();
+        const password = $("passwordInput").value.trim();
+        const data = await api("/api/auth/register", "POST", { email, password });
+        state.token = data.token;
+        state.user = data.user || null;
+        saveState();
+        renderAuthState();
+        setStatus("Registered successfully.");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    async function login() {
+      try {
+        setStatus("Logging in...");
+        const email = $("emailInput").value.trim();
+        const password = $("passwordInput").value.trim();
+        const data = await api("/api/auth/login", "POST", { email, password });
+        state.token = data.token;
+        state.user = data.user || null;
+        saveState();
+        renderAuthState();
+        setStatus("Logged in.");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    async function createFamily() {
+      try {
+        setStatus("Creating family...");
+        const data = await api("/api/family/create", "POST");
+        state.family = data;
+        saveState();
+        renderAuthState();
+        setStatus("Family created.");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    async function joinFamily() {
+      try {
+        setStatus("Joining family...");
+        const code = $("familyCodeInput").value.trim();
+        const data = await api("/api/family/join", "POST", { code });
+        state.family = data;
+        saveState();
+        renderAuthState();
+        setStatus("Joined family.");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    async function generatePlan() {
+      try {
+        setStatus("Generating plan...");
+        const brainDump = $("brainDumpInput").value.trim();
+        const data = await api("/api/plan", "POST", {
+          mode: "generate",
+          brainDump
+        });
+        state.plan = data;
+        saveState();
+        renderPlan();
+        setStatus("Plan generated.");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    async function quickEdit(editInstruction) {
+      try {
+        if (!state.plan) {
+          setStatus("Generate a plan first.");
+          return;
+        }
+        setStatus("Applying edit...");
+        const brainDump = $("brainDumpInput").value.trim();
+        const data = await api("/api/plan", "POST", {
+          mode: "quickEdit",
+          brainDump,
+          existingPlan: state.plan,
+          editInstruction
+        });
+        state.plan = data;
+        saveState();
+        renderPlan();
+        setStatus("Edit applied.");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    async function viewMealDetails(dayName, mealName) {
+      try {
+        setStatus("Loading meal details...");
+        const brainDump = $("brainDumpInput").value.trim();
+        const data = await api("/api/plan", "POST", {
+          mode: "mealDetails",
+          brainDump,
+          existingPlan: state.plan,
+          mealName,
+          dayName
+        });
+        $("modalTitle").textContent = mealName;
+        $("modalBody").textContent = JSON.stringify(data, null, 2);
+        $("modal").classList.remove("hidden");
+        setStatus("");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    async function exportGrocery() {
+      try {
+        setStatus("Exporting grocery...");
+        const data = await api("/api/grocery/export?store=walmart", "GET");
+        $("modalTitle").textContent = "Grocery Export";
+        $("modalBody").textContent = JSON.stringify(data, null, 2);
+        $("modal").classList.remove("hidden");
+        setStatus("Export ready.");
+      } catch (err) {
+        setStatus(err.message);
+      }
+    }
+
+    $("registerBtn").addEventListener("click", register);
+    $("loginBtn").addEventListener("click", login);
+    $("createFamilyBtn").addEventListener("click", createFamily);
+    $("joinFamilyBtn").addEventListener("click", joinFamily);
+    $("generateBtn").addEventListener("click", generatePlan);
+    $("fasterBtn").addEventListener("click", () => quickEdit("Make dinners faster"));
+    $("cheaperBtn").addEventListener("click", () => quickEdit("Make meals cheaper"));
+    $("proteinBtn").addEventListener("click", () => quickEdit("Add more protein"));
+    $("applyEditBtn").addEventListener("click", () => quickEdit($("customEditInput").value.trim()));
+    $("exportBtn").addEventListener("click", exportGrocery);
+    $("closeModalBtn").addEventListener("click", () => $("modal").classList.add("hidden"));
+
+    renderAuthState();
+    renderPlan();
+  </script>
+</body>
+</html>
