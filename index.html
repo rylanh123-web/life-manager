@@ -216,6 +216,31 @@
       else localStorage.removeItem("lm.plan");
     }
 
+    function normalizeFamilyPayload(data) {
+      if (!data) return null;
+      if (data.family) return data.family;
+      return data;
+    }
+
+    function getFamilyId() {
+      return state.family?.id || "";
+    }
+
+    function getFamilyCode() {
+      return state.family?.code || "N/A";
+    }
+
+    function formatMembers(members) {
+      if (!Array.isArray(members) || !members.length) return "";
+      return members
+        .map(member => {
+          const label = member.name || member.email || "Unknown";
+          const role = member.role || "member";
+          return `${label} (${role})`;
+        })
+        .join(", ");
+    }
+
     async function api(path, method = "GET", body) {
       const res = await fetch(path, {
         method,
@@ -249,7 +274,8 @@
       $("groceryCard").classList.toggle("hidden", !state.plan);
 
       if (state.family) {
-        $("familyInfo").textContent = `Family code: ${state.family.code || "N/A"} | Members: ${(state.family.members || []).join(", ")}`;
+        const membersText = formatMembers(state.family.members);
+        $("familyInfo").textContent = `Family code: ${getFamilyCode()} | Members: ${membersText || "Loading..."}`;
       } else {
         $("familyInfo").textContent = "No family yet.";
       }
@@ -317,6 +343,46 @@
       return String(str).replaceAll("\\", "\\\\").replaceAll("'", "\\'");
     }
 
+    async function loadFamilyMembers() {
+      try {
+        const familyId = getFamilyId();
+        if (!familyId || !state.token) return;
+
+        const data = await api(`/api/family/${familyId}`, "GET");
+        state.family = {
+          ...state.family,
+          ...(data.family || {}),
+          members: data.members || []
+        };
+        saveState();
+        renderAuthState();
+      } catch (err) {
+        console.error("Failed to load family members:", err);
+      }
+    }
+
+    async function hydrateSession() {
+      try {
+        if (!state.token) return;
+
+        const data = await api("/api/user/me", "GET");
+        state.user = data.user || state.user || null;
+        state.family = normalizeFamilyPayload(data.family);
+        saveState();
+        renderAuthState();
+
+        if (state.family?.id) {
+          await loadFamilyMembers();
+        }
+      } catch (err) {
+        state.token = "";
+        state.user = null;
+        state.family = null;
+        saveState();
+        renderAuthState();
+      }
+    }
+
     async function register() {
       try {
         setStatus("Registering...");
@@ -325,8 +391,14 @@
         const data = await api("/api/auth/register", "POST", { email, password });
         state.token = data.token;
         state.user = data.user || null;
+        state.family = normalizeFamilyPayload(data.family);
         saveState();
         renderAuthState();
+
+        if (state.family?.id) {
+          await loadFamilyMembers();
+        }
+
         setStatus("Registered successfully.");
       } catch (err) {
         setStatus(err.message);
@@ -341,8 +413,12 @@
         const data = await api("/api/auth/login", "POST", { email, password });
         state.token = data.token;
         state.user = data.user || null;
+        state.family = normalizeFamilyPayload(data.family);
         saveState();
         renderAuthState();
+
+        await hydrateSession();
+
         setStatus("Logged in.");
       } catch (err) {
         setStatus(err.message);
@@ -353,9 +429,14 @@
       try {
         setStatus("Creating family...");
         const data = await api("/api/family/create", "POST");
-        state.family = data;
+        state.family = normalizeFamilyPayload(data);
         saveState();
         renderAuthState();
+
+        if (state.family?.id) {
+          await loadFamilyMembers();
+        }
+
         setStatus("Family created.");
       } catch (err) {
         setStatus(err.message);
@@ -367,9 +448,14 @@
         setStatus("Joining family...");
         const code = $("familyCodeInput").value.trim();
         const data = await api("/api/family/join", "POST", { code });
-        state.family = data;
+        state.family = normalizeFamilyPayload(data);
         saveState();
         renderAuthState();
+
+        if (state.family?.id) {
+          await loadFamilyMembers();
+        }
+
         setStatus("Joined family.");
       } catch (err) {
         setStatus(err.message);
@@ -463,6 +549,7 @@
 
     renderAuthState();
     renderPlan();
+    hydrateSession();
   </script>
 </body>
 </html>
