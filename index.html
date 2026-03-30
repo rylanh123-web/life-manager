@@ -33,7 +33,7 @@ body {
  margin-bottom:16px;
 }
 
-.hidden { display:none; }
+.hidden { display:none !important; }
 
 textarea {
  width:100%;
@@ -60,9 +60,25 @@ textarea {
  border:0;
 }
 
-.day { margin-top:10px; padding:12px; background:var(--panel-2); border-radius:12px; }
-.meal { display:flex; gap:6px; margin-top:6px; }
-.chip { background:rgba(139,197,255,.1); padding:6px 10px; border-radius:999px; }
+.day {
+ margin-top:10px;
+ padding:12px;
+ background:var(--panel-2);
+ border-radius:12px;
+}
+
+.meal {
+ display:flex;
+ gap:6px;
+ margin-top:6px;
+ flex-wrap:wrap;
+}
+
+.chip {
+ background:rgba(139,197,255,.1);
+ padding:6px 10px;
+ border-radius:999px;
+}
 
 .modal {
  position:fixed;
@@ -72,6 +88,7 @@ textarea {
  align-items:center;
  justify-content:center;
 }
+
 .modal-inner {
  background:#121722;
  padding:16px;
@@ -295,5 +312,6 @@ function modalBody(){return document.getElementById("modalBody")}
 
 init()
 </script>
+
 </body>
 </html>
