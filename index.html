@@ -92,6 +92,21 @@
       min-height: 20px;
     }
 
+    .warning {
+      display: none;
+      background: #fff3cd;
+      color: #7a5a00;
+      border: 1px solid #ffe69c;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      line-height: 1.45;
+    }
+
+    .warning.show {
+      display: block;
+    }
+
     .card {
       background: white;
       padding: 14px;
@@ -147,16 +162,6 @@
     li {
       margin-bottom: 6px;
       line-height: 1.4;
-    }
-
-    .fallback-warning {
-      background: #fff3cd;
-      color: #7a5a00;
-      border: 1px solid #ffe69c;
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 14px;
-      display: none;
     }
 
     .meal-chip-list {
@@ -308,13 +313,14 @@
   <div class="container">
     <h1>Life Manager</h1>
     <div class="subtext">
-      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, and click any meal for a simple recipe-style breakdown.
+      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, click meals for simple details, and copy the week in readable text.
     </div>
 
     <textarea id="brainDump" placeholder="Dump your week here... work schedule, gym, appointments, groceries, food dislikes, events, everything."></textarea>
 
     <div class="button-row">
       <button id="generateBtn" class="primary-btn">Generate</button>
+      <button id="copyReadableBtn" class="ghost-btn" disabled>Copy Readable Plan</button>
     </div>
 
     <input id="quickEditInput" placeholder="make Thursday lighter, swap dinner to tacos" />
@@ -325,7 +331,7 @@
     </div>
 
     <div id="status" class="status"></div>
-    <div id="fallbackWarning" class="fallback-warning"></div>
+    <div id="warningBanner" class="warning"></div>
 
     <div id="plan"></div>
   </div>
@@ -337,7 +343,7 @@
           <h2 id="mealModalTitle" class="modal-title">Meal Details</h2>
           <div id="mealModalSubtitle" class="modal-subtitle"></div>
         </div>
-        <button id="closeMealModalBtn" class="close-btn">✕</button>
+        <button id="closeMealModalBtn" class="close-btn" type="button">✕</button>
       </div>
 
       <div id="mealModalContent"></div>
@@ -347,17 +353,23 @@
   <script>
     let currentPlan = null;
     let lastPlan = null;
-    let isLoading = false;
     let mealDetailCache = {};
+
+    const STORAGE_KEYS = {
+      plan: "lifeManagerPlan",
+      brainDump: "lifeManagerBrainDump",
+      mealDetailCache: "lifeManagerMealDetailCache"
+    };
 
     const brainDumpEl = document.getElementById("brainDump");
     const quickEditInputEl = document.getElementById("quickEditInput");
     const generateBtn = document.getElementById("generateBtn");
     const applyEditBtn = document.getElementById("applyEditBtn");
     const undoBtn = document.getElementById("undoBtn");
+    const copyReadableBtn = document.getElementById("copyReadableBtn");
     const statusEl = document.getElementById("status");
+    const warningBannerEl = document.getElementById("warningBanner");
     const planEl = document.getElementById("plan");
-    const fallbackWarningEl = document.getElementById("fallbackWarning");
 
     const mealModalBackdropEl = document.getElementById("mealModalBackdrop");
     const mealModalTitleEl = document.getElementById("mealModalTitle");
@@ -369,17 +381,9 @@
       statusEl.textContent = message || "";
     }
 
-    function setLoadingState(loading, label = "") {
-      isLoading = loading;
-
-      brainDumpEl.disabled = loading;
-      quickEditInputEl.disabled = loading;
-      generateBtn.disabled = loading;
-      applyEditBtn.disabled = loading;
-      undoBtn.disabled = loading || !lastPlan;
-
-      generateBtn.textContent = loading && label === "generate" ? "Loading..." : "Generate";
-      applyEditBtn.textContent = loading && label === "quickEdit" ? "Loading..." : "Apply Edit";
+    function showWarning(message) {
+      warningBannerEl.textContent = message || "";
+      warningBannerEl.classList.toggle("show", !!message);
     }
 
     function escapeHtml(str) {
@@ -391,53 +395,64 @@
         .replaceAll("'", "&#039;");
     }
 
-    function savePlan() {
-      if (!currentPlan) return;
-      localStorage.setItem("lifeManagerPlan", JSON.stringify(currentPlan));
-      localStorage.setItem("lifeManagerBrainDump", brainDumpEl.value || "");
-      localStorage.setItem("lifeManagerMealDetailCache", JSON.stringify(mealDetailCache));
+    function saveState() {
+      try {
+        if (currentPlan) {
+          localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(currentPlan));
+        }
+        localStorage.setItem(STORAGE_KEYS.brainDump, brainDumpEl.value || "");
+        localStorage.setItem(STORAGE_KEYS.mealDetailCache, JSON.stringify(mealDetailCache || {}));
+      } catch (error) {
+        console.error("Failed to save local state", error);
+      }
     }
 
-    function loadPlan() {
-      const savedBrainDump = localStorage.getItem("lifeManagerBrainDump");
-      const savedPlan = localStorage.getItem("lifeManagerPlan");
-      const savedMealCache = localStorage.getItem("lifeManagerMealDetailCache");
+    function loadState() {
+      try {
+        const savedBrainDump = localStorage.getItem(STORAGE_KEYS.brainDump);
+        const savedPlan = localStorage.getItem(STORAGE_KEYS.plan);
+        const savedMealCache = localStorage.getItem(STORAGE_KEYS.mealDetailCache);
 
-      if (savedBrainDump) {
-        brainDumpEl.value = savedBrainDump;
-      }
-
-      if (savedMealCache) {
-        try {
-          mealDetailCache = JSON.parse(savedMealCache) || {};
-        } catch (error) {
-          console.error("Failed to load saved meal detail cache", error);
-          mealDetailCache = {};
+        if (savedBrainDump) {
+          brainDumpEl.value = savedBrainDump;
         }
-      }
 
-      if (savedPlan) {
-        try {
-          currentPlan = JSON.parse(savedPlan);
-          render();
-
-          if (currentPlan?.isFallback) {
-            showFallbackWarning("You are viewing a fallback plan from a previous API failure.");
+        if (savedMealCache) {
+          try {
+            mealDetailCache = JSON.parse(savedMealCache) || {};
+          } catch {
+            mealDetailCache = {};
           }
-        } catch (error) {
-          console.error("Failed to load saved plan", error);
         }
+
+        if (savedPlan) {
+          try {
+            currentPlan = JSON.parse(savedPlan);
+            render();
+            copyReadableBtn.disabled = false;
+
+            if (currentPlan?.isFallback) {
+              showWarning("You are viewing a fallback plan from a previous API failure.");
+            }
+          } catch (error) {
+            console.error("Failed to parse saved plan", error);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load local state", error);
       }
     }
 
-    function showFallbackWarning(message) {
-      fallbackWarningEl.style.display = "block";
-      fallbackWarningEl.textContent = message;
-    }
+    function setLoadingState(loading, label = "") {
+      brainDumpEl.disabled = loading;
+      quickEditInputEl.disabled = loading;
+      generateBtn.disabled = loading;
+      applyEditBtn.disabled = loading;
+      copyReadableBtn.disabled = loading || !currentPlan;
+      undoBtn.disabled = loading || !lastPlan;
 
-    function hideFallbackWarning() {
-      fallbackWarningEl.style.display = "none";
-      fallbackWarningEl.textContent = "";
+      generateBtn.textContent = loading && label === "generate" ? "Loading..." : "Generate";
+      applyEditBtn.textContent = loading && label === "quickEdit" ? "Loading..." : "Apply Edit";
     }
 
     function renderList(items) {
@@ -484,6 +499,7 @@
     function render() {
       if (!currentPlan) {
         planEl.innerHTML = "";
+        copyReadableBtn.disabled = true;
         return;
       }
 
@@ -526,12 +542,31 @@
       `;
 
       planEl.innerHTML = html;
+      copyReadableBtn.disabled = false;
       attachMealChipEvents();
     }
 
     function clearMealDetailsCache() {
       mealDetailCache = {};
-      localStorage.removeItem("lifeManagerMealDetailCache");
+      saveState();
+    }
+
+    async function postPlan(payload) {
+      const response = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const error = new Error(data?.error || "Request failed");
+        error.fallback = data?.fallback || null;
+        throw error;
+      }
+
+      return data;
     }
 
     async function generatePlan() {
@@ -545,22 +580,12 @@
       try {
         setLoadingState(true, "generate");
         setStatus("Generating plan...");
-        hideFallbackWarning();
+        showWarning("");
 
-        const res = await fetch("/api/plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mode: "generate",
-            brainDump
-          })
+        const data = await postPlan({
+          mode: "generate",
+          brainDump
         });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data?.error || "Generate failed");
-        }
 
         currentPlan = data;
         lastPlan = null;
@@ -568,17 +593,28 @@
         clearMealDetailsCache();
 
         render();
-        savePlan();
+        saveState();
 
         if (data?.isFallback) {
-          showFallbackWarning("The API failed, so a fallback plan was loaded.");
+          showWarning("The API failed, so a fallback plan was loaded.");
         }
 
         setStatus("Plan generated.");
       } catch (error) {
         console.error(error);
-        setStatus("Generate failed.");
-        alert(error.message || "Generate failed.");
+
+        if (error.fallback) {
+          currentPlan = error.fallback;
+          lastPlan = null;
+          clearMealDetailsCache();
+          render();
+          saveState();
+          showWarning("The API failed, so a fallback empty plan was loaded.");
+          setStatus("Fallback plan loaded.");
+        } else {
+          showWarning("Could not generate the plan right now.");
+          setStatus(error.message || "Generate failed.");
+        }
       } finally {
         setLoadingState(false);
       }
@@ -601,40 +637,40 @@
         lastPlan = JSON.parse(JSON.stringify(currentPlan));
         setLoadingState(true, "quickEdit");
         setStatus("Applying edit...");
-        hideFallbackWarning();
+        showWarning("");
 
-        const res = await fetch("/api/plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mode: "quickEdit",
-            brainDump: brainDumpEl.value.trim(),
-            existingPlan: currentPlan,
-            editInstruction: input
-          })
+        const data = await postPlan({
+          mode: "quickEdit",
+          brainDump: brainDumpEl.value.trim(),
+          existingPlan: currentPlan,
+          editInstruction: input
         });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data?.error || "Edit failed");
-        }
 
         currentPlan = data;
         clearMealDetailsCache();
         render();
-        savePlan();
+        saveState();
+        undoBtn.disabled = false;
 
         if (data?.isFallback) {
-          showFallbackWarning("The API failed, so a fallback plan was loaded.");
+          showWarning("The API failed, so a fallback empty plan was loaded.");
         }
 
-        undoBtn.disabled = false;
         setStatus("Edit applied.");
       } catch (error) {
         console.error(error);
-        setStatus("Edit failed.");
-        alert(error.message || "Edit failed.");
+
+        if (error.fallback) {
+          currentPlan = error.fallback;
+          clearMealDetailsCache();
+          render();
+          saveState();
+          showWarning("The API failed while applying your edit, so a fallback empty plan was loaded.");
+          setStatus("Fallback plan loaded.");
+        } else {
+          showWarning("Could not apply the edit right now.");
+          setStatus(error.message || "Edit failed.");
+        }
       } finally {
         setLoadingState(false);
       }
@@ -645,13 +681,11 @@
 
       currentPlan = lastPlan;
       lastPlan = null;
-
       clearMealDetailsCache();
       render();
-      savePlan();
-
-      hideFallbackWarning();
+      saveState();
       undoBtn.disabled = true;
+      showWarning("");
       setStatus("Undo complete.");
     }
 
@@ -704,31 +738,21 @@
 
       mealModalContentEl.innerHTML = `
         <div class="modal-loading">
-          Building a simple recipe plan for <strong>${escapeHtml(mealName)}</strong>...
+          Building recipe details for <strong>${escapeHtml(mealName)}</strong>...
         </div>
       `;
 
       try {
-        const res = await fetch("/api/plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mode: "mealDetails",
-            brainDump: brainDumpEl.value.trim(),
-            existingPlan: currentPlan,
-            mealName,
-            dayName
-          })
+        const data = await postPlan({
+          mode: "mealDetails",
+          brainDump: brainDumpEl.value.trim(),
+          existingPlan: currentPlan,
+          mealName,
+          dayName
         });
 
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data?.error || "Failed to load meal details");
-        }
-
         mealDetailCache[cacheKey] = data;
-        savePlan();
+        saveState();
         renderMealDetailsContent(data);
       } catch (error) {
         console.error(error);
@@ -740,9 +764,65 @@
       }
     }
 
+    async function copyReadablePlan() {
+      if (!currentPlan) return;
+
+      const days = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+      let text = "";
+
+      for (const day of days) {
+        const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
+
+        text += `${capitalize(day)}\n`;
+        text += `${dayData.busy ? "Busy Day" : "Lighter Day"}\n\n`;
+
+        text += "Tasks:\n";
+        if (dayData.tasks.length) {
+          dayData.tasks.forEach(task => {
+            text += `- ${task}\n`;
+          });
+        } else {
+          text += "- None\n";
+        }
+
+        text += "\nMeals:\n";
+        if (dayData.meals.length) {
+          dayData.meals.forEach(meal => {
+            text += `- ${meal}\n`;
+          });
+        } else {
+          text += "- None\n";
+        }
+
+        text += "\n-------------------\n\n";
+      }
+
+      text += "Grocery List:\n";
+      if (currentPlan.groceryList.length) {
+        currentPlan.groceryList.forEach(item => {
+          text += `- ${item}\n`;
+        });
+      } else {
+        text += "- None\n";
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("Readable plan copied.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not copy plan.");
+      }
+    }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
     generateBtn.addEventListener("click", generatePlan);
     applyEditBtn.addEventListener("click", applyQuickEdit);
     undoBtn.addEventListener("click", undoEdit);
+    copyReadableBtn.addEventListener("click", copyReadablePlan);
     closeMealModalBtn.addEventListener("click", closeMealModal);
 
     mealModalBackdropEl.addEventListener("click", (event) => {
@@ -757,7 +837,11 @@
       }
     });
 
-    loadPlan();
+    brainDumpEl.addEventListener("input", () => {
+      saveState();
+    });
+
+    loadState();
   </script>
 </body>
 </html>
