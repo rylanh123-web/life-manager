@@ -5,1496 +5,1375 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Life Manager</title>
   <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel-2: #1f2430;
+      --border: rgba(255,255,255,0.08);
+      --text: #f4f7fb;
+      --muted: #a7b0c0;
+      --accent: #8bc5ff;
+      --accent-2: #c8e4ff;
+      --danger: #ff8d8d;
+      --success: #95dfb8;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --max: 1120px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f7;
-      padding: 20px;
-      margin: 0;
-      color: #111;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #0d1016 0%, #111621 100%);
+      color: var(--text);
+      min-height: 100vh;
     }
 
-    .container {
-      max-width: 1000px;
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    .app {
+      width: min(var(--max), calc(100vw - 32px));
       margin: 0 auto;
+      padding: 20px 0 48px;
     }
 
-    h1 {
-      margin-top: 0;
-      margin-bottom: 10px;
-    }
-
-    .subtext {
-      color: #555;
-      margin-bottom: 16px;
-      line-height: 1.45;
-    }
-
-    textarea,
-    input,
-    select {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 10px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      font-size: 16px;
-      box-sizing: border-box;
-      background: white;
-    }
-
-    textarea {
-      min-height: 140px;
-      resize: vertical;
-    }
-
-    .button-row {
+    .topbar {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 18px;
+      min-height: 28px;
     }
 
-    button {
-      padding: 10px 14px;
+    .preferences-link {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
       cursor: pointer;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
+      padding: 6px 0;
+      font-size: 0.95rem;
+    }
+
+    .preferences-link:hover { color: var(--accent-2); }
+
+    .hero-shell {
+      display: grid;
+      gap: 18px;
+      transition: all 180ms ease;
+    }
+
+    .hero {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      backdrop-filter: blur(8px);
+    }
+
+    .hero.empty-state {
+      min-height: calc(100vh - 120px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1.02;
+      margin: 0 0 10px;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 1.02rem;
+      max-width: 720px;
+      line-height: 1.55;
+    }
+
+    .brain-dump-shell {
+      display: grid;
+      gap: 12px;
+    }
+
+    .brain-dump {
+      width: 100%;
+      min-height: 170px;
+      resize: vertical;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 18px;
+      line-height: 1.5;
+      outline: none;
+    }
+
+    .brain-dump:focus,
+    .manual-edit-input:focus,
+    .pref-input:focus,
+    .pref-select:focus {
+      border-color: rgba(139,197,255,0.6);
+      box-shadow: 0 0 0 4px rgba(139,197,255,0.12);
+    }
+
+    .hero-actions,
+    .toolbar-actions,
+    .modal-actions,
+    .recipe-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn,
+    .chip,
+    .collapse-toggle,
+    .meal-chip {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: 140ms ease;
+    }
+
+    .btn:hover,
+    .chip:hover,
+    .collapse-toggle:hover,
+    .meal-chip:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,0.16);
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #a7d6ff 0%, #83c3ff 100%);
+      color: #0c1422;
+      border: 0;
       font-weight: 700;
+      padding-inline: 18px;
     }
 
-    .primary-btn {
-      background: #111;
-      color: white;
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
     }
 
-    .secondary-btn {
-      background: #ececf3;
-      color: #111;
-    }
-
-    .ghost-btn {
-      background: white;
-      color: #111;
-      border: 1px solid #ddd;
-    }
-
-    .smart-btn {
-      background: #eef2ff;
-      color: #3730a3;
-      border: 1px solid #c7d2fe;
-      padding: 8px 12px;
-      font-size: 13px;
-    }
-
-    button:disabled,
-    textarea:disabled,
-    input:disabled,
-    select:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .btn-danger { color: var(--danger); }
 
     .status {
-      margin-bottom: 18px;
-      font-size: 14px;
-      color: #555;
-      min-height: 20px;
+      color: var(--muted);
+      min-height: 22px;
+      font-size: 0.95rem;
     }
 
-    .warning {
-      display: none;
-      background: #fff3cd;
-      color: #7a5a00;
-      border: 1px solid #ffe69c;
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 14px;
-      line-height: 1.45;
-    }
-
-    .warning.show {
-      display: block;
-    }
-
-    .pref-section,
-    .smart-section {
-      background: white;
-      border: 1px solid #e8e8ef;
-      padding: 14px;
-      border-radius: 12px;
-      margin-bottom: 14px;
-    }
-
-    .pref-title,
-    .smart-title {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #666;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-
-    .pref-grid {
+    .content-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .toolbar {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar h2,
+    .plan-card h2,
+    .grocery-card h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+
+    .smart-edits {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .manual-edit-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
       gap: 10px;
     }
 
-    .pref-card {
-      background: #fafafe;
-      border: 1px solid #ececf3;
-      border-radius: 10px;
-      padding: 10px;
+    .manual-edit-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 13px 14px;
+      outline: none;
     }
 
-    .pref-label {
-      font-size: 12px;
-      font-weight: 700;
-      color: #555;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
+    .plan-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
+      gap: 18px;
+      align-items: start;
     }
 
-    .checkbox-row {
+    .plan-card,
+    .grocery-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .plan-days {
+      display: grid;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .day-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .day-header {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-      font-size: 14px;
-      color: #333;
+      justify-content: space-between;
+      align-items: start;
+      gap: 12px;
     }
 
-    .checkbox-row input {
-      width: auto;
+    .day-name {
+      font-size: 1.1rem;
+      font-weight: 700;
       margin: 0;
     }
 
-    .memory-summary {
+    .day-focus {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 4px;
+    }
+
+    .task-list,
+    .meal-list,
+    .grocery-items,
+    .tag-list,
+    .pref-checks {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 6px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
     }
 
-    .memory-chip {
-      background: #f4f4f7;
-      color: #333;
+    .task-item,
+    .tag,
+    .grocery-item {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
       border-radius: 999px;
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: 700;
-      border: 1px solid #e5e7eb;
-    }
-
-    .smart-chip-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .card {
-      background: white;
-      padding: 14px;
-      margin-bottom: 12px;
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-    }
-
-    .card h3 {
-      margin-top: 0;
-      margin-bottom: 8px;
-      text-transform: capitalize;
-    }
-
-    .busy-badge {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 6px 10px;
-      border-radius: 999px;
-      margin-bottom: 10px;
-      background: #ececf3;
-      color: #333;
-    }
-
-    .busy-badge.busy {
-      background: #eef2ff;
-      color: #3730a3;
-    }
-
-    .section-title {
-      margin: 20px 0 10px;
-      font-size: 20px;
-      font-weight: 700;
-    }
-
-    .mini-label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #666;
-      font-weight: 700;
-      margin-top: 10px;
-      margin-bottom: 6px;
-    }
-
-    ul {
-      margin-top: 8px;
-      margin-bottom: 0;
-      padding-left: 18px;
-    }
-
-    li {
-      margin-bottom: 6px;
-      line-height: 1.4;
-    }
-
-    .meal-chip-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 8px;
-      align-items: center;
+      padding: 8px 12px;
+      font-size: 0.92rem;
     }
 
     .meal-block {
+      display: grid;
+      gap: 8px;
+      padding-top: 6px;
+    }
+
+    .meal-row {
       display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding: 8px 10px;
-      border: 1px solid #ececf3;
-      border-radius: 12px;
-      background: #fff;
-      min-width: 180px;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
     }
 
     .meal-chip {
-      border: 1px solid #ddd;
-      background: #fffaf0;
-      color: #111;
-      border-radius: 999px;
       padding: 8px 12px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      text-align: left;
-      width: fit-content;
-      max-width: 100%;
+      font-size: 0.94rem;
+      background: rgba(139,197,255,0.08);
+      border-color: rgba(139,197,255,0.18);
     }
 
-    .meal-chip:hover {
-      background: #fff3db;
-    }
-
-    .meal-tags-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      min-height: 18px;
-    }
-
-    .meal-tag {
-      background: #f4f4f7;
-      color: #444;
-      border: 1px solid #e5e7eb;
-      border-radius: 999px;
-      padding: 4px 8px;
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .meal-tag.loading {
-      color: #777;
-      background: #fafafa;
-    }
-
-    .empty-text {
-      color: #777;
-      font-style: italic;
+    .grocery-sections {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
     }
 
     .grocery-section {
-      margin-bottom: 10px;
-      border: 1px solid #ececf3;
-      border-radius: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
       overflow: hidden;
-      background: #fff;
     }
 
-    .grocery-toggle {
+    .collapse-toggle {
       width: 100%;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--border);
       text-align: left;
-      background: #fafafe;
-      color: #111;
-      border: none;
-      border-bottom: 1px solid #ececf3;
-      padding: 12px 14px;
-      font-size: 14px;
-      font-weight: 700;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-radius: 0;
+      padding: 14px 16px;
     }
 
-    .grocery-toggle.collapsed {
-      border-bottom: none;
+    .collapse-content {
+      padding: 14px 16px 16px;
     }
 
-    .grocery-content {
-      padding: 12px 14px;
-      display: block;
-    }
-
-    .grocery-content.collapsed {
-      display: none;
-    }
-
-    .grocery-count {
-      color: #666;
-      font-size: 13px;
-      font-weight: 700;
-    }
+    .hidden { display: none !important; }
 
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.45);
-      display: none;
+      background: rgba(4, 8, 14, 0.62);
+      display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
-      z-index: 999;
-    }
-
-    .modal-backdrop.show {
-      display: flex;
+      padding: 18px;
+      z-index: 50;
     }
 
     .modal {
-      background: white;
-      width: 100%;
-      max-width: 620px;
-      border-radius: 16px;
+      width: min(680px, 100%);
+      max-height: min(88vh, 900px);
+      overflow: auto;
+      background: #121722;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
       padding: 18px;
-      box-shadow: 0 18px 50px rgba(0,0,0,0.22);
-      max-height: 85vh;
-      overflow-y: auto;
     }
 
     .modal-header {
       display: flex;
       justify-content: space-between;
-      align-items: start;
       gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .modal-title {
-      font-size: 24px;
-      font-weight: 800;
-      margin: 0;
-    }
-
-    .modal-subtitle {
-      color: #666;
-      font-size: 14px;
-      margin-top: 4px;
-      line-height: 1.45;
-    }
-
-    .close-btn {
-      background: #ececf3;
-      color: #111;
-      min-width: 42px;
-      padding: 10px 12px;
-    }
-
-    .recipe-meta {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: #f3f4f6;
-      color: #333;
+      align-items: start;
       margin-bottom: 14px;
     }
 
-    .modal-loading {
-      color: #555;
-      line-height: 1.5;
-      padding: 18px 0;
-    }
-
-    .modal-section-title {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #666;
-      font-weight: 700;
-      margin-top: 16px;
-      margin-bottom: 8px;
-    }
-
-    .modal-list {
+    .modal-title {
       margin: 0;
-      padding-left: 18px;
+      font-size: 1.15rem;
     }
 
-    .copyable-box {
-      background: #fafafa;
-      border: 1px solid #e5e5e5;
-      border-radius: 10px;
+    .modal-close {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+    }
+
+    .pref-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .pref-field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .pref-field label,
+    .pref-checks legend {
+      color: var(--accent-2);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .pref-input,
+    .pref-select {
+      width: 100%;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+    }
+
+    fieldset.pref-checks {
+      border: 1px solid var(--border);
+      border-radius: 16px;
       padding: 12px;
-      line-height: 1.5;
-      white-space: pre-wrap;
+      display: grid;
+      gap: 10px;
     }
 
-    @media (max-width: 700px) {
-      body {
-        padding: 14px;
-      }
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+    }
 
-      .button-row,
-      .smart-chip-row {
-        flex-direction: column;
-      }
+    .recipe-body {
+      display: grid;
+      gap: 14px;
+    }
 
-      .button-row button,
-      .smart-chip-row button {
-        width: 100%;
-      }
+    .recipe-meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
 
-      .pref-grid {
+    .recipe-list {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .empty-note {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 900px) {
+      .plan-layout {
         grid-template-columns: 1fr;
       }
 
-      .meal-block {
-        width: 100%;
+      .hero.empty-state {
+        min-height: auto;
+        padding-top: 36px;
+        padding-bottom: 36px;
       }
+    }
 
-      .modal {
-        padding: 14px;
-      }
-
-      .modal-title {
-        font-size: 20px;
-      }
+    @media (max-width: 640px) {
+      .app { width: min(100vw - 18px, var(--max)); padding-top: 12px; }
+      .hero, .plan-card, .grocery-card, .toolbar, .modal { padding: 14px; }
+      .manual-edit-row { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 2rem; }
+      .btn, .chip { width: 100%; justify-content: center; }
+      .hero-actions .btn,
+      .toolbar-actions .btn,
+      .modal-actions .btn { width: 100%; }
+      .smart-edits { display: grid; grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Life Manager</h1>
-    <div class="subtext">
-      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, use one-tap smart edits, click meals for simple details, copy the week in readable text, save meal preferences across sessions, and show helpful meal tags.
+  <main class="app" id="appRoot">
+    <div class="topbar">
+      <button id="newChatBtn" class="preferences-link" type="button">＋ New Chat</button>
+      <button id="openPreferencesBtn" class="preferences-link" type="button">⚙️ Preferences</button>
     </div>
 
-    <textarea id="brainDump" placeholder="Dump your week here... work schedule, gym, appointments, groceries, food dislikes, events, everything."></textarea>
+    <section class="hero-shell">
+      <section id="heroCard" class="hero empty-state">
+        <h1>Turn the chaos in your head into a clear week.</h1>
+        <p>
+          Dump everything here — meals, errands, work, kids, appointments, worries, random reminders.
+          Life Manager will turn it into a realistic weekly plan you can actually use.
+        </p>
 
-    <div class="pref-section">
-      <div class="pref-title">Preference Memory</div>
+        <div class="brain-dump-shell">
+          <textarea
+            id="brainDumpInput"
+            class="brain-dump"
+            placeholder="Example: Busy Monday. Need 3 gym days. Grocery run. Easy dinners. No mushrooms. School pickup Tuesday and Thursday. Call Mom. Finish quote for client."
+          ></textarea>
+
+          <div class="hero-actions">
+            <button id="generateBtn" class="btn btn-primary" type="button">Generate Weekly Plan</button>
+            <button id="copyReadablePlanBtn" class="btn btn-ghost hidden" type="button">Copy Readable Plan</button>
+          </div>
+
+          <div id="statusMessage" class="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section id="contentGrid" class="content-grid hidden">
+        <section id="toolbar" class="toolbar hidden">
+          <h2>Refine your plan</h2>
+
+          <div id="smartEditChips" class="smart-edits">
+            <button class="chip" type="button" data-edit="Make dinners faster">Make dinners faster</button>
+            <button class="chip" type="button" data-edit="Make meals cheaper">Make meals cheaper</button>
+            <button class="chip" type="button" data-edit="Add more protein">Add more protein</button>
+            <button class="chip" type="button" data-edit="Lighten up busy days">Lighten up busy days</button>
+            <button class="chip" type="button" data-edit="Swap in kid-friendly meals">Kid-friendly meals</button>
+            <button class="chip" type="button" data-edit="Add one more easy lunch option">Add easy lunches</button>
+          </div>
+
+          <div class="manual-edit-row">
+            <input id="manualEditInput" class="manual-edit-input" type="text" placeholder="Type an edit like: replace chicken meals with beef or make Wednesday lighter" />
+            <button id="applyEditBtn" class="btn" type="button">Apply Edit</button>
+          </div>
+
+          <div class="toolbar-actions">
+            <button id="undoBtn" class="btn" type="button">Undo</button>
+          </div>
+        </section>
+
+        <section class="plan-layout">
+          <section class="plan-card">
+            <h2>Your week</h2>
+            <div id="planDays" class="plan-days"></div>
+          </section>
+
+          <aside class="grocery-card">
+            <h2>Grocery list</h2>
+            <div id="grocerySections" class="grocery-sections"></div>
+          </aside>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <div id="preferencesBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preferencesTitle">
+      <div class="modal-header">
+        <div>
+          <h3 id="preferencesTitle" class="modal-title">Preferences</h3>
+          <div class="empty-note">These preferences are applied to generation, edits, readable copy, and meal details.</div>
+        </div>
+        <button id="closePreferencesBtn" class="modal-close" type="button" aria-label="Close preferences">×</button>
+      </div>
 
       <div class="pref-grid">
-        <div class="pref-card">
-          <div class="pref-label">Avoid Ingredients</div>
-          <input id="avoidIngredientsInput" placeholder="chicken, mushrooms, olives" />
+        <div class="pref-field">
+          <label for="avoidIngredientsInput">Avoid ingredients</label>
+          <input id="avoidIngredientsInput" class="pref-input" type="text" placeholder="e.g. mushrooms, olives, shrimp" />
         </div>
 
-        <div class="pref-card">
-          <div class="pref-label">Preferred Meal Style</div>
-          <select id="mealStyleSelect">
-            <option value="">No specific style</option>
+        <div class="pref-field">
+          <label for="mealStyleSelect">Preferred meal style</label>
+          <select id="mealStyleSelect" class="pref-select">
+            <option value="">No preference</option>
             <option value="balanced">Balanced</option>
-            <option value="quick and simple">Quick and simple</option>
-            <option value="cheap and practical">Cheap and practical</option>
-            <option value="high protein">High protein</option>
-            <option value="family friendly">Family friendly</option>
+            <option value="comfort">Comfort food</option>
+            <option value="low-carb">Low carb</option>
+            <option value="high-protein">High protein</option>
+            <option value="family-style">Family style</option>
+            <option value="meal-prep">Meal prep</option>
+            <option value="simple-home-cooking">Simple home cooking</option>
           </select>
         </div>
 
-        <div class="pref-card">
-          <div class="pref-label">Meal Priorities</div>
-          <label class="checkbox-row">
-            <input id="highProteinCheckbox" type="checkbox" />
-            <span>Prioritize high protein</span>
-          </label>
-          <label class="checkbox-row">
-            <input id="cheapMealsCheckbox" type="checkbox" />
-            <span>Prioritize cheaper meals</span>
-          </label>
-          <label class="checkbox-row">
-            <input id="quickMealsCheckbox" type="checkbox" />
-            <span>Prioritize quick meals</span>
-          </label>
-          <label class="checkbox-row">
-            <input id="kidFriendlyCheckbox" type="checkbox" />
-            <span>Prefer kid-friendly meals</span>
-          </label>
-        </div>
+        <fieldset class="pref-checks">
+          <legend>Plan goals</legend>
+          <label class="check-row"><input id="prefHighProtein" type="checkbox" /> High protein</label>
+          <label class="check-row"><input id="prefCheapMeals" type="checkbox" /> Cheap meals</label>
+          <label class="check-row"><input id="prefQuickMeals" type="checkbox" /> Quick meals</label>
+          <label class="check-row"><input id="prefKidFriendly" type="checkbox" /> Kid-friendly</label>
+        </fieldset>
 
-        <div class="pref-card">
-          <div class="pref-label">Saved Memory Summary</div>
-          <div id="memorySummary" class="memory-summary"></div>
+        <div class="modal-actions">
+          <button id="savePreferencesBtn" class="btn btn-primary" type="button">Save</button>
+          <button id="clearPreferencesBtn" class="btn btn-ghost btn-danger" type="button">Clear</button>
         </div>
       </div>
-
-      <div class="button-row" style="margin-top: 12px; margin-bottom: 0;">
-        <button id="savePreferencesBtn" class="secondary-btn" type="button">Save Preferences</button>
-        <button id="clearPreferencesBtn" class="ghost-btn" type="button">Clear Preferences</button>
-      </div>
     </div>
-
-    <div class="button-row">
-      <button id="generateBtn" class="primary-btn">Generate</button>
-      <button id="copyReadableBtn" class="ghost-btn" disabled>Copy Readable Plan</button>
-    </div>
-
-    <div class="smart-section">
-      <div class="smart-title">Smart Edits</div>
-      <div class="smart-chip-row">
-        <button class="smart-btn" data-smart-edit="make this week easier" type="button">Make week easier</button>
-        <button class="smart-btn" data-smart-edit="make meals cheaper this week" type="button">Make meals cheaper</button>
-        <button class="smart-btn" data-smart-edit="make lunches higher protein" type="button">Higher protein lunches</button>
-        <button class="smart-btn" data-smart-edit="reduce cooking time this week" type="button">Reduce cooking time</button>
-        <button class="smart-btn" data-smart-edit="make weekdays lighter" type="button">Make weekdays lighter</button>
-        <button class="smart-btn" data-smart-edit="add more variety to meals" type="button">More meal variety</button>
-      </div>
-    </div>
-
-    <input id="quickEditInput" placeholder="make Thursday lighter, swap dinner to tacos" />
-
-    <div class="button-row">
-      <button id="applyEditBtn" class="secondary-btn">Apply Edit</button>
-      <button id="undoBtn" class="ghost-btn" disabled>Undo</button>
-    </div>
-
-    <div id="status" class="status"></div>
-    <div id="warningBanner" class="warning"></div>
-
-    <div id="plan"></div>
   </div>
 
-  <div id="mealModalBackdrop" class="modal-backdrop">
-    <div class="modal">
+  <div id="recipeBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recipeTitle">
       <div class="modal-header">
         <div>
-          <h2 id="mealModalTitle" class="modal-title">Meal Details</h2>
-          <div id="mealModalSubtitle" class="modal-subtitle"></div>
+          <h3 id="recipeTitle" class="modal-title">Meal details</h3>
+          <div id="recipeMeta" class="recipe-meta"></div>
         </div>
-        <button id="closeMealModalBtn" class="close-btn" type="button">✕</button>
+        <button id="closeRecipeBtn" class="modal-close" type="button" aria-label="Close meal details">×</button>
       </div>
 
-      <div id="mealModalContent"></div>
+      <div class="recipe-body">
+        <p id="recipeDescription"></p>
+
+        <div>
+          <strong>Ingredients</strong>
+          <ul id="recipeIngredients" class="recipe-list"></ul>
+        </div>
+
+        <div>
+          <strong>Steps</strong>
+          <ol id="recipeSteps" class="recipe-list"></ol>
+        </div>
+
+        <div class="recipe-actions">
+          <button id="closeRecipeFooterBtn" class="btn" type="button">Close</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    let currentPlan = null;
-    let lastPlan = null;
-    let mealDetailCache = {};
-    let mealTagCache = {};
-    let userPreferences = null;
-
     const STORAGE_KEYS = {
-      plan: "lifeManagerPlan",
-      brainDump: "lifeManagerBrainDump",
-      mealDetailCache: "lifeManagerMealDetailCache",
-      mealTagCache: "lifeManagerMealTagCache",
-      preferences: "lifeManagerPreferences"
+      brainDump: 'lifeManager.brainDump',
+      plan: 'lifeManager.plan',
+      preferences: 'lifeManager.preferences',
+      history: 'lifeManager.planHistory',
+      groceryCollapse: 'lifeManager.groceryCollapse',
+      mealDetailsCache: 'lifeManager.mealDetailsCache',
+      mealTagsCache: 'lifeManager.mealTagsCache'
     };
 
-    const GROCERY_SECTIONS = ["produce", "protein", "dairy", "pantry", "frozen", "other"];
-    const GROCERY_LABELS = {
-      produce: "Produce",
-      protein: "Protein",
-      dairy: "Dairy",
-      pantry: "Pantry",
-      frozen: "Frozen",
-      other: "Other"
+    const DEFAULT_PREFERENCES = {
+      avoidIngredients: '',
+      mealStyle: '',
+      highProtein: false,
+      cheapMeals: false,
+      quickMeals: false,
+      kidFriendly: false
     };
 
-    const brainDumpEl = document.getElementById("brainDump");
-    const quickEditInputEl = document.getElementById("quickEditInput");
-    const generateBtn = document.getElementById("generateBtn");
-    const applyEditBtn = document.getElementById("applyEditBtn");
-    const undoBtn = document.getElementById("undoBtn");
-    const copyReadableBtn = document.getElementById("copyReadableBtn");
-    const statusEl = document.getElementById("status");
-    const warningBannerEl = document.getElementById("warningBanner");
-    const planEl = document.getElementById("plan");
+    const state = {
+      brainDump: '',
+      plan: null,
+      preferences: { ...DEFAULT_PREFERENCES },
+      history: [],
+      groceryCollapse: {},
+      mealDetailsCache: {},
+      mealTagsCache: {},
+      loading: false
+    };
 
-    const avoidIngredientsInput = document.getElementById("avoidIngredientsInput");
-    const mealStyleSelect = document.getElementById("mealStyleSelect");
-    const highProteinCheckbox = document.getElementById("highProteinCheckbox");
-    const cheapMealsCheckbox = document.getElementById("cheapMealsCheckbox");
-    const quickMealsCheckbox = document.getElementById("quickMealsCheckbox");
-    const kidFriendlyCheckbox = document.getElementById("kidFriendlyCheckbox");
-    const savePreferencesBtn = document.getElementById("savePreferencesBtn");
-    const clearPreferencesBtn = document.getElementById("clearPreferencesBtn");
-    const memorySummaryEl = document.getElementById("memorySummary");
+    const els = {
+      heroCard: document.getElementById('heroCard'),
+      contentGrid: document.getElementById('contentGrid'),
+      toolbar: document.getElementById('toolbar'),
+      brainDumpInput: document.getElementById('brainDumpInput'),
+      generateBtn: document.getElementById('generateBtn'),
+      copyReadablePlanBtn: document.getElementById('copyReadablePlanBtn'),
+      statusMessage: document.getElementById('statusMessage'),
+      smartEditChips: document.getElementById('smartEditChips'),
+      manualEditInput: document.getElementById('manualEditInput'),
+      applyEditBtn: document.getElementById('applyEditBtn'),
+      undoBtn: document.getElementById('undoBtn'),
+      planDays: document.getElementById('planDays'),
+      grocerySections: document.getElementById('grocerySections'),
+      newChatBtn: document.getElementById('newChatBtn'),
+      openPreferencesBtn: document.getElementById('openPreferencesBtn'),
+      preferencesBackdrop: document.getElementById('preferencesBackdrop'),
+      closePreferencesBtn: document.getElementById('closePreferencesBtn'),
+      avoidIngredientsInput: document.getElementById('avoidIngredientsInput'),
+      mealStyleSelect: document.getElementById('mealStyleSelect'),
+      prefHighProtein: document.getElementById('prefHighProtein'),
+      prefCheapMeals: document.getElementById('prefCheapMeals'),
+      prefQuickMeals: document.getElementById('prefQuickMeals'),
+      prefKidFriendly: document.getElementById('prefKidFriendly'),
+      savePreferencesBtn: document.getElementById('savePreferencesBtn'),
+      clearPreferencesBtn: document.getElementById('clearPreferencesBtn'),
+      recipeBackdrop: document.getElementById('recipeBackdrop'),
+      closeRecipeBtn: document.getElementById('closeRecipeBtn'),
+      closeRecipeFooterBtn: document.getElementById('closeRecipeFooterBtn'),
+      recipeTitle: document.getElementById('recipeTitle'),
+      recipeMeta: document.getElementById('recipeMeta'),
+      recipeDescription: document.getElementById('recipeDescription'),
+      recipeIngredients: document.getElementById('recipeIngredients'),
+      recipeSteps: document.getElementById('recipeSteps')
+    };
 
-    const mealModalBackdropEl = document.getElementById("mealModalBackdrop");
-    const mealModalTitleEl = document.getElementById("mealModalTitle");
-    const mealModalSubtitleEl = document.getElementById("mealModalSubtitle");
-    const mealModalContentEl = document.getElementById("mealModalContent");
-    const closeMealModalBtn = document.getElementById("closeMealModalBtn");
-
-    function setStatus(message) {
-      statusEl.textContent = message || "";
+    function loadFromStorage() {
+      state.brainDump = localStorage.getItem(STORAGE_KEYS.brainDump) || '';
+      state.plan = readJSON(STORAGE_KEYS.plan, null);
+      state.preferences = { ...DEFAULT_PREFERENCES, ...readJSON(STORAGE_KEYS.preferences, {}) };
+      state.history = readJSON(STORAGE_KEYS.history, []);
+      state.groceryCollapse = readJSON(STORAGE_KEYS.groceryCollapse, {});
+      state.mealDetailsCache = readJSON(STORAGE_KEYS.mealDetailsCache, {});
+      state.mealTagsCache = readJSON(STORAGE_KEYS.mealTagsCache, {});
     }
 
-    function showWarning(message) {
-      warningBannerEl.textContent = message || "";
-      warningBannerEl.classList.toggle("show", !!message);
+    function persistState() {
+      localStorage.setItem(STORAGE_KEYS.brainDump, state.brainDump || '');
+      localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(state.plan || null));
+      localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify(state.preferences));
+      localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(state.history));
+      localStorage.setItem(STORAGE_KEYS.groceryCollapse, JSON.stringify(state.groceryCollapse));
+      localStorage.setItem(STORAGE_KEYS.mealDetailsCache, JSON.stringify(state.mealDetailsCache));
+      localStorage.setItem(STORAGE_KEYS.mealTagsCache, JSON.stringify(state.mealTagsCache));
     }
 
-    function escapeHtml(str) {
-      return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    function parseCommaList(value) {
-      return String(value || "")
-        .split(",")
-        .map(item => item.trim())
-        .filter(Boolean);
-    }
-
-    function normalizePreferences(preferences) {
-      return {
-        dislikedIngredients: Array.isArray(preferences?.dislikedIngredients)
-          ? preferences.dislikedIngredients.filter(Boolean).map(String)
-          : [],
-        preferredMealStyle:
-          typeof preferences?.preferredMealStyle === "string"
-            ? preferences.preferredMealStyle.trim()
-            : "",
-        prioritizeHighProtein: Boolean(preferences?.prioritizeHighProtein),
-        prioritizeCheapMeals: Boolean(preferences?.prioritizeCheapMeals),
-        prioritizeQuickMeals: Boolean(preferences?.prioritizeQuickMeals),
-        kidFriendlyMeals: Boolean(preferences?.kidFriendlyMeals)
-      };
-    }
-
-    function getPreferencesFromForm() {
-      return normalizePreferences({
-        dislikedIngredients: parseCommaList(avoidIngredientsInput.value),
-        preferredMealStyle: mealStyleSelect.value,
-        prioritizeHighProtein: highProteinCheckbox.checked,
-        prioritizeCheapMeals: cheapMealsCheckbox.checked,
-        prioritizeQuickMeals: quickMealsCheckbox.checked,
-        kidFriendlyMeals: kidFriendlyCheckbox.checked
-      });
-    }
-
-    function applyPreferencesToForm(preferences) {
-      const p = normalizePreferences(preferences);
-
-      avoidIngredientsInput.value = p.dislikedIngredients.join(", ");
-      mealStyleSelect.value = p.preferredMealStyle || "";
-      highProteinCheckbox.checked = p.prioritizeHighProtein;
-      cheapMealsCheckbox.checked = p.prioritizeCheapMeals;
-      quickMealsCheckbox.checked = p.prioritizeQuickMeals;
-      kidFriendlyCheckbox.checked = p.kidFriendlyMeals;
-    }
-
-    function renderPreferenceSummary(preferences) {
-      const p = normalizePreferences(preferences);
-      const chips = [];
-
-      if (p.dislikedIngredients.length) {
-        chips.push(`Avoid: ${p.dislikedIngredients.join(", ")}`);
+    function clearLifeManagerStorage() {
+      const keysToRemove = [];
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (key && key.startsWith('lifeManager.')) {
+          keysToRemove.push(key);
+        }
       }
-      if (p.preferredMealStyle) {
-        chips.push(`Style: ${p.preferredMealStyle}`);
-      }
-      if (p.prioritizeHighProtein) {
-        chips.push("High protein");
-      }
-      if (p.prioritizeCheapMeals) {
-        chips.push("Cheaper meals");
-      }
-      if (p.prioritizeQuickMeals) {
-        chips.push("Quick meals");
-      }
-      if (p.kidFriendlyMeals) {
-        chips.push("Kid-friendly");
-      }
-
-      if (!chips.length) {
-        memorySummaryEl.innerHTML = `<div class="empty-text">No saved preference memory yet.</div>`;
-        return;
-      }
-
-      memorySummaryEl.innerHTML = chips
-        .map(chip => `<div class="memory-chip">${escapeHtml(chip)}</div>`)
-        .join("");
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
     }
 
-    function normalizeGroceryList(groceryList) {
-      if (Array.isArray(groceryList)) {
+    function readJSON(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (error) {
+        console.warn('Failed to read localStorage key:', key, error);
+        return fallback;
+      }
+    }
+
+    function setStatus(message, isError = false) {
+      els.statusMessage.textContent = message || '';
+      els.statusMessage.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+    }
+
+    function setLoading(isLoading, label = 'Working...') {
+      state.loading = isLoading;
+      els.generateBtn.disabled = isLoading;
+      els.applyEditBtn.disabled = isLoading;
+      els.undoBtn.disabled = isLoading || state.history.length === 0;
+      els.generateBtn.textContent = isLoading ? label : 'Generate Weekly Plan';
+      if (!isLoading) return;
+      setStatus(label);
+    }
+
+    function hasPlan() {
+      return !!state.plan && (Array.isArray(state.plan.days) ? state.plan.days.length > 0 : Array.isArray(state.plan.week) && state.plan.week.length > 0);
+    }
+
+    function getPlanDays() {
+      if (!state.plan) return [];
+      if (Array.isArray(state.plan.days)) return state.plan.days;
+      if (Array.isArray(state.plan.week)) return state.plan.week;
+      return [];
+    }
+
+    function normalizeMealList(rawMeals) {
+      if (!rawMeals) return [];
+      if (Array.isArray(rawMeals)) {
+        return rawMeals.map((meal) => {
+          if (typeof meal === 'string') {
+            return { name: meal, tags: [] };
+          }
+          return {
+            name: meal.name || meal.title || meal.meal || 'Meal',
+            tags: Array.isArray(meal.tags) ? meal.tags : []
+          };
+        });
+      }
+      return Object.entries(rawMeals).map(([slot, value]) => {
+        if (typeof value === 'string') return { slot, name: value, tags: [] };
         return {
-          produce: [],
-          protein: [],
-          dairy: [],
-          pantry: groceryList.filter(Boolean).map(String),
-          frozen: [],
-          other: []
+          slot,
+          name: value?.name || value?.title || slot,
+          tags: Array.isArray(value?.tags) ? value.tags : []
         };
-      }
-
-      return {
-        produce: Array.isArray(groceryList?.produce) ? groceryList.produce.filter(Boolean).map(String) : [],
-        protein: Array.isArray(groceryList?.protein) ? groceryList.protein.filter(Boolean).map(String) : [],
-        dairy: Array.isArray(groceryList?.dairy) ? groceryList.dairy.filter(Boolean).map(String) : [],
-        pantry: Array.isArray(groceryList?.pantry) ? groceryList.pantry.filter(Boolean).map(String) : [],
-        frozen: Array.isArray(groceryList?.frozen) ? groceryList.frozen.filter(Boolean).map(String) : [],
-        other: Array.isArray(groceryList?.other) ? groceryList.other.filter(Boolean).map(String) : []
-      };
-    }
-
-    function normalizeDay(day) {
-      return {
-        tasks: Array.isArray(day?.tasks) ? day.tasks.filter(Boolean).map(String) : [],
-        meals: Array.isArray(day?.meals) ? day.meals.filter(Boolean).map(String) : [],
-        busy: Boolean(day?.busy)
-      };
-    }
-
-    function normalizePlan(plan) {
-      if (!plan || typeof plan !== "object") return null;
-
-      return {
-        monday: normalizeDay(plan.monday),
-        tuesday: normalizeDay(plan.tuesday),
-        wednesday: normalizeDay(plan.wednesday),
-        thursday: normalizeDay(plan.thursday),
-        friday: normalizeDay(plan.friday),
-        saturday: normalizeDay(plan.saturday),
-        sunday: normalizeDay(plan.sunday),
-        groceryList: normalizeGroceryList(plan.groceryList),
-        isFallback: Boolean(plan.isFallback)
-      };
-    }
-
-    function saveState() {
-      try {
-        if (currentPlan) {
-          localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(currentPlan));
-        }
-        localStorage.setItem(STORAGE_KEYS.brainDump, brainDumpEl.value || "");
-        localStorage.setItem(STORAGE_KEYS.mealDetailCache, JSON.stringify(mealDetailCache || {}));
-        localStorage.setItem(STORAGE_KEYS.mealTagCache, JSON.stringify(mealTagCache || {}));
-        localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify(normalizePreferences(userPreferences)));
-      } catch (error) {
-        console.error("Failed to save local state", error);
-      }
-    }
-
-    function loadState() {
-      try {
-        const savedBrainDump = localStorage.getItem(STORAGE_KEYS.brainDump);
-        const savedPlan = localStorage.getItem(STORAGE_KEYS.plan);
-        const savedMealCache = localStorage.getItem(STORAGE_KEYS.mealDetailCache);
-        const savedMealTagCache = localStorage.getItem(STORAGE_KEYS.mealTagCache);
-        const savedPreferences = localStorage.getItem(STORAGE_KEYS.preferences);
-
-        if (savedBrainDump) {
-          brainDumpEl.value = savedBrainDump;
-        }
-
-        if (savedMealCache) {
-          try {
-            mealDetailCache = JSON.parse(savedMealCache) || {};
-          } catch {
-            mealDetailCache = {};
-          }
-        }
-
-        if (savedMealTagCache) {
-          try {
-            mealTagCache = JSON.parse(savedMealTagCache) || {};
-          } catch {
-            mealTagCache = {};
-          }
-        }
-
-        if (savedPreferences) {
-          try {
-            userPreferences = normalizePreferences(JSON.parse(savedPreferences));
-          } catch {
-            userPreferences = normalizePreferences({});
-          }
-        } else {
-          userPreferences = normalizePreferences({});
-        }
-
-        applyPreferencesToForm(userPreferences);
-        renderPreferenceSummary(userPreferences);
-
-        if (savedPlan) {
-          try {
-            currentPlan = normalizePlan(JSON.parse(savedPlan));
-            if (currentPlan) {
-              render();
-              copyReadableBtn.disabled = false;
-
-              if (currentPlan?.isFallback) {
-                showWarning("You are viewing a fallback plan from a previous API failure.");
-              }
-            }
-          } catch (error) {
-            console.error("Failed to parse saved plan", error);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load local state", error);
-      }
-    }
-
-    function setLoadingState(loading, label = "") {
-      brainDumpEl.disabled = loading;
-      quickEditInputEl.disabled = loading;
-      generateBtn.disabled = loading;
-      applyEditBtn.disabled = loading;
-      savePreferencesBtn.disabled = loading;
-      clearPreferencesBtn.disabled = loading;
-      avoidIngredientsInput.disabled = loading;
-      mealStyleSelect.disabled = loading;
-      highProteinCheckbox.disabled = loading;
-      cheapMealsCheckbox.disabled = loading;
-      quickMealsCheckbox.disabled = loading;
-      kidFriendlyCheckbox.disabled = loading;
-      copyReadableBtn.disabled = loading || !currentPlan;
-      undoBtn.disabled = loading || !lastPlan;
-
-      document.querySelectorAll(".smart-btn").forEach(btn => {
-        btn.disabled = loading || !currentPlan;
-      });
-
-      generateBtn.textContent = loading && label === "generate" ? "Loading..." : "Generate";
-      applyEditBtn.textContent = loading && label === "quickEdit" ? "Loading..." : "Apply Edit";
-    }
-
-    function renderList(items) {
-      if (!Array.isArray(items) || !items.length) {
-        return "<li>None</li>";
-      }
-
-      return items.map(item => `<li>${escapeHtml(item)}</li>`).join("");
-    }
-
-    function renderMealTags(day, meal) {
-      const tags = getMealTagsFromCache(day, meal);
-
-      if (tags === "__loading__") {
-        return `<div class="meal-tags-row"><span class="meal-tag loading">Loading tags...</span></div>`;
-      }
-
-      if (!Array.isArray(tags) || !tags.length) {
-        return `<div class="meal-tags-row"></div>`;
-      }
-
-      return `
-        <div class="meal-tags-row">
-          ${tags.map(tag => `<span class="meal-tag">${escapeHtml(tag)}</span>`).join("")}
-        </div>
-      `;
-    }
-
-    function renderMealChips(day, meals) {
-      if (!Array.isArray(meals) || !meals.length) {
-        return `<div class="empty-text">No meals planned.</div>`;
-      }
-
-      return `
-        <div class="meal-chip-list">
-          ${meals.map(meal => `
-            <div class="meal-block">
-              <button
-                class="meal-chip"
-                data-day="${escapeHtml(day)}"
-                data-meal="${escapeHtml(meal)}"
-                type="button"
-              >
-                ${escapeHtml(meal)}
-              </button>
-              ${renderMealTags(day, meal)}
-            </div>
-          `).join("")}
-        </div>
-      `;
-    }
-
-    function renderGrocerySections(groceryList) {
-      const normalized = normalizeGroceryList(groceryList);
-
-      return GROCERY_SECTIONS.map(section => {
-        const items = normalized[section] || [];
-        const collapsed = items.length === 0 ? "collapsed" : "";
-        const itemsHtml = items.length
-          ? `<ul>${renderList(items)}</ul>`
-          : `<div class="empty-text">No items in this section.</div>`;
-
-        return `
-          <div class="grocery-section">
-            <button class="grocery-toggle ${collapsed}" data-section="${section}" type="button">
-              <span>${GROCERY_LABELS[section]}</span>
-              <span class="grocery-count">${items.length}</span>
-            </button>
-            <div class="grocery-content ${collapsed}" data-section-content="${section}">
-              ${itemsHtml}
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    function attachMealChipEvents() {
-      const mealChips = document.querySelectorAll(".meal-chip");
-
-      mealChips.forEach(chip => {
-        chip.addEventListener("click", () => {
-          const day = chip.getAttribute("data-day");
-          const meal = chip.getAttribute("data-meal");
-          openMealDetails(day, meal);
-        });
       });
     }
 
-    function attachGroceryToggleEvents() {
-      const toggles = document.querySelectorAll(".grocery-toggle");
+    function normalizeTaskList(rawTasks) {
+      if (!rawTasks) return [];
+      if (Array.isArray(rawTasks)) return rawTasks.filter(Boolean);
+      return Object.values(rawTasks).filter(Boolean);
+    }
 
-      toggles.forEach(toggle => {
-        toggle.addEventListener("click", () => {
-          const section = toggle.getAttribute("data-section");
-          const content = document.querySelector(`[data-section-content="${section}"]`);
-          if (!content) return;
+    function normalizeGrocerySections(raw) {
+      if (!raw) return {};
+      if (raw.groceryList && typeof raw.groceryList === 'object' && !Array.isArray(raw.groceryList)) {
+        return raw.groceryList;
+      }
+      if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+      if (Array.isArray(raw)) return { other: dedupeStrings(raw) };
+      return {};
+    }
 
-          const willCollapse = !content.classList.contains("collapsed");
-          content.classList.toggle("collapsed", willCollapse);
-          toggle.classList.toggle("collapsed", willCollapse);
-        });
+    function dedupeStrings(list) {
+      return [...new Set((list || []).map((item) => String(item).trim()).filter(Boolean))];
+    }
+
+    function planToReadableText() {
+      if (!hasPlan()) return '';
+      const lines = [];
+      lines.push('Life Manager Weekly Plan');
+      lines.push('');
+      lines.push('Brain dump:');
+      lines.push(state.brainDump || '');
+      lines.push('');
+      lines.push('Preferences:');
+      lines.push(formatPreferencesForCopy());
+      lines.push('');
+
+      getPlanDays().forEach((day) => {
+        const dayName = day.day || day.dayName || day.name || 'Day';
+        const focus = day.focus || day.theme || '';
+        lines.push(dayName + (focus ? ` — ${focus}` : ''));
+
+        const tasks = normalizeTaskList(day.tasks || day.toDos || day.todo || day.schedule);
+        if (tasks.length) {
+          lines.push('  Tasks:');
+          tasks.forEach((task) => lines.push(`  - ${task}`));
+        }
+
+        const meals = normalizeMealList(day.meals || day.menu || day.food);
+        if (meals.length) {
+          lines.push('  Meals:');
+          meals.forEach((meal) => {
+            const slot = meal.slot ? `${meal.slot}: ` : '';
+            const tags = meal.tags?.length ? ` (${meal.tags.join(', ')})` : '';
+            lines.push(`  - ${slot}${meal.name}${tags}`);
+          });
+        }
+
+        lines.push('');
       });
+
+      const grocerySections = normalizeGrocerySections(state.plan.groceryList || state.plan.groceries || state.plan.shoppingList);
+      lines.push('Grocery List:');
+      Object.entries(grocerySections).forEach(([section, items]) => {
+        lines.push(`- ${titleCase(section)}:`);
+        dedupeStrings(items).forEach((item) => lines.push(`  - ${item}`));
+      });
+
+      return lines.join('\n').trim();
+    }
+
+    function formatPreferencesForCopy() {
+      const entries = [];
+      if (state.preferences.avoidIngredients) entries.push(`Avoid ingredients: ${state.preferences.avoidIngredients}`);
+      if (state.preferences.mealStyle) entries.push(`Meal style: ${titleCase(state.preferences.mealStyle)}`);
+      if (state.preferences.highProtein) entries.push('High protein');
+      if (state.preferences.cheapMeals) entries.push('Cheap meals');
+      if (state.preferences.quickMeals) entries.push('Quick meals');
+      if (state.preferences.kidFriendly) entries.push('Kid-friendly');
+      return entries.length ? entries.join(' | ') : 'None';
+    }
+
+    function titleCase(value) {
+      return String(value || '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase());
     }
 
     function render() {
-      if (!currentPlan) {
-        planEl.innerHTML = "";
-        copyReadableBtn.disabled = true;
-        document.querySelectorAll(".smart-btn").forEach(btn => {
-          btn.disabled = true;
-        });
+      els.brainDumpInput.value = state.brainDump;
+      syncPreferencesToInputs();
+
+      const planExists = hasPlan();
+      els.heroCard.classList.toggle('empty-state', !planExists);
+      els.contentGrid.classList.toggle('hidden', !planExists);
+      els.toolbar.classList.toggle('hidden', !planExists);
+      els.copyReadablePlanBtn.classList.toggle('hidden', !planExists);
+      els.undoBtn.disabled = state.loading || state.history.length === 0;
+
+      renderPlanDays();
+      renderGrocerySections();
+    }
+
+    function renderPlanDays() {
+      const days = getPlanDays();
+      els.planDays.innerHTML = '';
+
+      if (!days.length) {
+        els.planDays.innerHTML = '<p class="empty-note">Generate a plan to see your week.</p>';
         return;
       }
 
-      const plan = normalizePlan(currentPlan);
-      const dayOrder = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+      days.forEach((day, dayIndex) => {
+        const card = document.createElement('article');
+        card.className = 'day-card';
 
-      let html = "";
+        const dayName = day.day || day.dayName || day.name || `Day ${dayIndex + 1}`;
+        const focus = day.focus || day.theme || day.note || '';
+        const tasks = normalizeTaskList(day.tasks || day.toDos || day.todo || day.schedule);
+        const meals = normalizeMealList(day.meals || day.menu || day.food);
 
-      for (const day of dayOrder) {
-        const dayData = plan[day] || { tasks: [], meals: [], busy: false };
-
-        html += `
-          <div class="card">
-            <h3>${escapeHtml(day)}</h3>
-            <div class="busy-badge ${dayData.busy ? "busy" : ""}">
-              ${dayData.busy ? "Busy Day" : "Lighter Day"}
-            </div>
-
-            <div class="mini-label">Tasks</div>
-            <ul>${renderList(dayData.tasks)}</ul>
-
-            <div class="mini-label">Meals</div>
-            ${renderMealChips(day, dayData.meals)}
+        const header = document.createElement('div');
+        header.className = 'day-header';
+        header.innerHTML = `
+          <div>
+            <h3 class="day-name">${escapeHtml(dayName)}</h3>
+            <div class="day-focus">${escapeHtml(focus || 'No special focus')}</div>
           </div>
         `;
+        card.appendChild(header);
+
+        const taskWrap = document.createElement('div');
+        taskWrap.innerHTML = '<strong>Tasks</strong>';
+        const taskList = document.createElement('ul');
+        taskList.className = 'task-list';
+        if (tasks.length) {
+          tasks.forEach((task) => {
+            const li = document.createElement('li');
+            li.className = 'task-item';
+            li.textContent = task;
+            taskList.appendChild(li);
+          });
+        } else {
+          const li = document.createElement('li');
+          li.className = 'task-item';
+          li.textContent = 'No tasks assigned';
+          taskList.appendChild(li);
+        }
+        taskWrap.appendChild(taskList);
+        card.appendChild(taskWrap);
+
+        const mealWrap = document.createElement('div');
+        mealWrap.className = 'meal-block';
+        mealWrap.innerHTML = '<strong>Meals</strong>';
+
+        if (meals.length) {
+          meals.forEach((meal) => {
+            const row = document.createElement('div');
+            row.className = 'meal-block';
+
+            const mealRow = document.createElement('div');
+            mealRow.className = 'meal-row';
+
+            const button = document.createElement('button');
+            button.className = 'meal-chip';
+            button.type = 'button';
+            button.textContent = meal.slot ? `${titleCase(meal.slot)}: ${meal.name}` : meal.name;
+            button.addEventListener('click', () => openMealDetails(dayName, meal.name));
+            mealRow.appendChild(button);
+
+            row.appendChild(mealRow);
+
+            const tags = document.createElement('ul');
+            tags.className = 'tag-list';
+            const mergedTags = dedupeStrings([...(meal.tags || []), ...getCachedMealTags(dayName, meal.name)]);
+            if (mergedTags.length) {
+              mergedTags.forEach((tag) => {
+                const li = document.createElement('li');
+                li.className = 'tag';
+                li.textContent = tag;
+                tags.appendChild(li);
+              });
+            }
+            row.appendChild(tags);
+            mealWrap.appendChild(row);
+
+            if (!meal.tags?.length && !getCachedMealTags(dayName, meal.name).length) {
+              void hydrateMealTags(dayName, meal.name);
+            }
+          });
+        } else {
+          const note = document.createElement('div');
+          note.className = 'empty-note';
+          note.textContent = 'No meals available.';
+          mealWrap.appendChild(note);
+        }
+
+        card.appendChild(mealWrap);
+        els.planDays.appendChild(card);
+      });
+    }
+
+    function renderGrocerySections() {
+      els.grocerySections.innerHTML = '';
+      const sections = normalizeGrocerySections(state.plan?.groceryList || state.plan?.groceries || state.plan?.shoppingList);
+      const entries = Object.entries(sections);
+
+      if (!entries.length) {
+        els.grocerySections.innerHTML = '<p class="empty-note">No grocery list yet.</p>';
+        return;
       }
 
-      html += `
-        <div class="section-title">Grocery List</div>
-        <div class="card">
-          ${renderGrocerySections(plan.groceryList)}
-        </div>
-      `;
+      entries.forEach(([section, rawItems]) => {
+        const items = dedupeStrings(rawItems);
+        const wrapper = document.createElement('section');
+        wrapper.className = 'grocery-section';
 
-      planEl.innerHTML = html;
-      copyReadableBtn.disabled = false;
-      document.querySelectorAll(".smart-btn").forEach(btn => {
-        btn.disabled = false;
+        const isCollapsed = !!state.groceryCollapse[section];
+
+        const toggle = document.createElement('button');
+        toggle.className = 'collapse-toggle';
+        toggle.type = 'button';
+        toggle.innerHTML = `<span>${escapeHtml(titleCase(section))}</span><span>${isCollapsed ? '+' : '−'}</span>`;
+        toggle.addEventListener('click', () => {
+          state.groceryCollapse[section] = !state.groceryCollapse[section];
+          persistState();
+          renderGrocerySections();
+        });
+
+        const content = document.createElement('div');
+        content.className = 'collapse-content';
+        content.classList.toggle('hidden', isCollapsed);
+
+        const list = document.createElement('ul');
+        list.className = 'grocery-items';
+        items.forEach((item) => {
+          const li = document.createElement('li');
+          li.className = 'grocery-item';
+          li.textContent = item;
+          list.appendChild(li);
+        });
+        content.appendChild(list);
+
+        wrapper.appendChild(toggle);
+        wrapper.appendChild(content);
+        els.grocerySections.appendChild(wrapper);
       });
-
-      attachMealChipEvents();
-      attachGroceryToggleEvents();
-      loadVisibleMealTags();
     }
 
-    function clearMealDetailsCache() {
-      mealDetailCache = {};
-      saveState();
+    function syncPreferencesToInputs() {
+      els.avoidIngredientsInput.value = state.preferences.avoidIngredients || '';
+      els.mealStyleSelect.value = state.preferences.mealStyle || '';
+      els.prefHighProtein.checked = !!state.preferences.highProtein;
+      els.prefCheapMeals.checked = !!state.preferences.cheapMeals;
+      els.prefQuickMeals.checked = !!state.preferences.quickMeals;
+      els.prefKidFriendly.checked = !!state.preferences.kidFriendly;
     }
 
-    function clearMealTagCache() {
-      mealTagCache = {};
-      saveState();
+    function readPreferencesFromInputs() {
+      return {
+        avoidIngredients: els.avoidIngredientsInput.value.trim(),
+        mealStyle: els.mealStyleSelect.value,
+        highProtein: els.prefHighProtein.checked,
+        cheapMeals: els.prefCheapMeals.checked,
+        quickMeals: els.prefQuickMeals.checked,
+        kidFriendly: els.prefKidFriendly.checked
+      };
     }
 
-    async function postPlan(payload) {
-      const response = await fetch("/api/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+    function openPreferences() {
+      syncPreferencesToInputs();
+      els.preferencesBackdrop.classList.remove('hidden');
+      els.preferencesBackdrop.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closePreferences() {
+      els.preferencesBackdrop.classList.add('hidden');
+      els.preferencesBackdrop.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    function openRecipeModal() {
+      els.recipeBackdrop.classList.remove('hidden');
+      els.recipeBackdrop.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeRecipeModal() {
+      els.recipeBackdrop.classList.add('hidden');
+      els.recipeBackdrop.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    async function callPlanApi(payload) {
+      const response = await fetch('/api/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (error) {
+        throw new Error('The API returned an invalid response.');
+      }
 
       if (!response.ok) {
-        const error = new Error(data?.error || "Request failed");
-        error.fallback = data?.fallback || null;
-        throw error;
+        throw new Error(data?.error || 'Request failed.');
       }
 
       return data;
     }
 
-    function currentPreferencesPayload() {
-      userPreferences = getPreferencesFromForm();
-      return normalizePreferences(userPreferences);
+    function pushHistorySnapshot() {
+      if (!state.plan) return;
+      state.history.push(JSON.parse(JSON.stringify(state.plan)));
+      if (state.history.length > 25) state.history.shift();
     }
 
     async function generatePlan() {
-      const brainDump = brainDumpEl.value.trim();
+      const brainDump = els.brainDumpInput.value.trim();
+      state.brainDump = brainDump;
+      persistState();
 
       if (!brainDump) {
-        setStatus("Enter your brain dump first.");
+        setStatus('Add a brain dump first.', true);
+        els.brainDumpInput.focus();
         return;
       }
 
-      try {
-        setLoadingState(true, "generate");
-        setStatus("Generating plan...");
-        showWarning("");
+      setLoading(true, hasPlan() ? 'Regenerating...' : 'Generating...');
 
-        const data = await postPlan({
-          mode: "generate",
+      try {
+        const plan = await callPlanApi({
+          mode: 'generate',
           brainDump,
-          preferences: currentPreferencesPayload()
+          preferences: state.preferences
         });
 
-        currentPlan = normalizePlan(data);
-        lastPlan = null;
-        undoBtn.disabled = true;
-        clearMealDetailsCache();
-        clearMealTagCache();
-
+        if (state.plan) pushHistorySnapshot();
+        state.plan = plan;
+        persistState();
         render();
-        saveState();
-
-        if (currentPlan?.isFallback) {
-          showWarning("The API failed, so a fallback plan was loaded.");
-        }
-
-        setStatus("Plan generated.");
+        setStatus('Weekly plan ready.');
       } catch (error) {
         console.error(error);
-
-        if (error.fallback) {
-          currentPlan = normalizePlan(error.fallback);
-          lastPlan = null;
-          clearMealDetailsCache();
-          clearMealTagCache();
-          render();
-          saveState();
-          showWarning("The API failed, so a fallback empty plan was loaded.");
-          setStatus("Fallback plan loaded.");
-        } else {
-          showWarning("Could not generate the plan right now.");
-          setStatus(error.message || "Generate failed.");
-        }
+        setStatus(error.message || 'Could not generate the plan.', true);
       } finally {
-        setLoadingState(false);
+        setLoading(false);
       }
     }
 
-    async function applyQuickEdit(prefilledInstruction = "") {
-      const input = (prefilledInstruction || quickEditInputEl.value || "").trim();
+    async function applyEdit(editInstruction) {
+      const instruction = (editInstruction || els.manualEditInput.value || '').trim();
+      state.brainDump = els.brainDumpInput.value.trim();
+      persistState();
 
-      if (!input) {
-        setStatus("Enter an edit first.");
+      if (!state.plan) {
+        setStatus('Generate a plan before editing it.', true);
         return;
       }
 
-      if (!currentPlan) {
-        setStatus("Generate a plan first.");
+      if (!instruction) {
+        setStatus('Type an edit instruction first.', true);
+        els.manualEditInput.focus();
         return;
       }
 
-      if (prefilledInstruction) {
-        quickEditInputEl.value = prefilledInstruction;
-      }
+      setLoading(true, 'Applying edit...');
 
       try {
-        lastPlan = JSON.parse(JSON.stringify(currentPlan));
-        setLoadingState(true, "quickEdit");
-        setStatus("Applying smart edit...");
-        showWarning("");
-
-        const data = await postPlan({
-          mode: "quickEdit",
-          brainDump: brainDumpEl.value.trim(),
-          existingPlan: currentPlan,
-          editInstruction: input,
-          preferences: currentPreferencesPayload()
+        pushHistorySnapshot();
+        const updatedPlan = await callPlanApi({
+          mode: 'quickEdit',
+          brainDump: state.brainDump,
+          existingPlan: state.plan,
+          editInstruction: instruction,
+          preferences: state.preferences
         });
 
-        currentPlan = normalizePlan(data);
-        clearMealDetailsCache();
-        clearMealTagCache();
+        state.plan = updatedPlan;
+        els.manualEditInput.value = '';
+        persistState();
         render();
-        saveState();
-        undoBtn.disabled = false;
-
-        if (currentPlan?.isFallback) {
-          showWarning("The API failed, so a fallback empty plan was loaded.");
-        }
-
-        setStatus("Edit applied.");
+        setStatus('Edit applied.');
       } catch (error) {
         console.error(error);
-
-        if (error.fallback) {
-          currentPlan = normalizePlan(error.fallback);
-          clearMealDetailsCache();
-          clearMealTagCache();
-          render();
-          saveState();
-          showWarning("The API failed while applying your edit, so a fallback empty plan was loaded.");
-          setStatus("Fallback plan loaded.");
-        } else {
-          showWarning("Could not apply the edit right now.");
-          setStatus(error.message || "Edit failed.");
-        }
+        state.history.pop();
+        persistState();
+        setStatus(error.message || 'Could not apply the edit.', true);
       } finally {
-        setLoadingState(false);
+        setLoading(false);
       }
     }
 
-    function undoEdit() {
-      if (!lastPlan) return;
-
-      currentPlan = normalizePlan(lastPlan);
-      lastPlan = null;
-      clearMealDetailsCache();
-      clearMealTagCache();
-      render();
-      saveState();
-      undoBtn.disabled = true;
-      showWarning("");
-      setStatus("Undo complete.");
-    }
-
-    function openMealModal(title, subtitle) {
-      mealModalTitleEl.textContent = title || "Meal Details";
-      mealModalSubtitleEl.textContent = subtitle || "";
-      mealModalBackdropEl.classList.add("show");
-    }
-
-    function closeMealModal() {
-      mealModalBackdropEl.classList.remove("show");
-      mealModalTitleEl.textContent = "Meal Details";
-      mealModalSubtitleEl.textContent = "";
-      mealModalContentEl.innerHTML = "";
-    }
-
-    function mealDetailCacheKey(dayName, mealName) {
-      const prefKey = JSON.stringify(normalizePreferences(userPreferences));
-      return `detail__${String(dayName).toLowerCase()}__${String(mealName).toLowerCase()}__${prefKey}`;
-    }
-
-    function mealTagCacheKey(dayName, mealName) {
-      const prefKey = JSON.stringify(normalizePreferences(userPreferences));
-      return `tag__${String(dayName).toLowerCase()}__${String(mealName).toLowerCase()}__${prefKey}`;
-    }
-
-    function getMealTagsFromCache(dayName, mealName) {
-      userPreferences = getPreferencesFromForm();
-      return mealTagCache[mealTagCacheKey(dayName, mealName)];
-    }
-
-    function setMealTagsLoading(dayName, mealName) {
-      userPreferences = getPreferencesFromForm();
-      mealTagCache[mealTagCacheKey(dayName, mealName)] = "__loading__";
-      saveState();
-    }
-
-    function setMealTagsCache(dayName, mealName, tags) {
-      userPreferences = getPreferencesFromForm();
-      mealTagCache[mealTagCacheKey(dayName, mealName)] = Array.isArray(tags) ? tags : [];
-      saveState();
-    }
-
-    function renderMealDetailsContent(details) {
-      const ingredientsHtml = Array.isArray(details.ingredients) && details.ingredients.length
-        ? `<ul class="modal-list">${details.ingredients.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
-        : `<div class="empty-text">No ingredients needed.</div>`;
-
-      const stepsHtml = Array.isArray(details.steps) && details.steps.length
-        ? `<ol class="modal-list">${details.steps.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`
-        : `<div class="empty-text">No steps needed.</div>`;
-
-      mealModalContentEl.innerHTML = `
-        ${details.prepTime ? `<div class="recipe-meta">${escapeHtml(details.prepTime)}</div>` : ""}
-        ${details.description ? `<div class="copyable-box">${escapeHtml(details.description)}</div>` : ""}
-        <div class="modal-section-title">Ingredients</div>
-        ${ingredientsHtml}
-        <div class="modal-section-title">Steps</div>
-        ${stepsHtml}
-      `;
-    }
-
-    async function openMealDetails(dayName, mealName) {
-      if (!currentPlan) return;
-
-      userPreferences = getPreferencesFromForm();
-      const cacheKey = mealDetailCacheKey(dayName, mealName);
-      openMealModal(mealName, `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} meal`);
-
-      if (mealDetailCache[cacheKey]) {
-        renderMealDetailsContent(mealDetailCache[cacheKey]);
+    function undoLastEdit() {
+      if (!state.history.length) {
+        setStatus('Nothing to undo.', true);
         return;
       }
 
-      mealModalContentEl.innerHTML = `
-        <div class="modal-loading">
-          Building recipe details for <strong>${escapeHtml(mealName)}</strong>...
-        </div>
-      `;
-
-      try {
-        const data = await postPlan({
-          mode: "mealDetails",
-          brainDump: brainDumpEl.value.trim(),
-          existingPlan: currentPlan,
-          mealName,
-          dayName,
-          preferences: currentPreferencesPayload()
-        });
-
-        mealDetailCache[cacheKey] = data;
-        saveState();
-        renderMealDetailsContent(data);
-      } catch (error) {
-        console.error(error);
-        mealModalContentEl.innerHTML = `
-          <div class="copyable-box">
-            Could not load meal details right now.
-          </div>
-        `;
-      }
-    }
-
-    async function fetchMealTags(dayName, mealName) {
-      if (!currentPlan) return;
-
-      const existing = getMealTagsFromCache(dayName, mealName);
-      if (existing !== undefined) return;
-
-      setMealTagsLoading(dayName, mealName);
+      state.plan = state.history.pop();
+      persistState();
       render();
-
-      try {
-        const data = await postPlan({
-          mode: "mealTags",
-          brainDump: brainDumpEl.value.trim(),
-          existingPlan: currentPlan,
-          mealName,
-          dayName,
-          preferences: currentPreferencesPayload()
-        });
-
-        setMealTagsCache(dayName, mealName, data.tags || []);
-        render();
-      } catch (error) {
-        console.error(error);
-        setMealTagsCache(dayName, mealName, []);
-        render();
-      }
-    }
-
-    function loadVisibleMealTags() {
-      if (!currentPlan) return;
-
-      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-      for (const day of days) {
-        const meals = Array.isArray(currentPlan[day]?.meals) ? currentPlan[day].meals : [];
-        meals.forEach(meal => {
-          fetchMealTags(day, meal);
-        });
-      }
-    }
-
-    function flattenGroceryList(groceryList) {
-      const normalized = normalizeGroceryList(groceryList);
-      return GROCERY_SECTIONS.flatMap(section => normalized[section] || []);
+      setStatus('Last change undone.');
     }
 
     async function copyReadablePlan() {
-      if (!currentPlan) return;
-
-      const days = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
-      let text = "";
-
-      const prefs = normalizePreferences(userPreferences);
-
-      if (
-        prefs.dislikedIngredients.length ||
-        prefs.preferredMealStyle ||
-        prefs.prioritizeHighProtein ||
-        prefs.prioritizeCheapMeals ||
-        prefs.prioritizeQuickMeals ||
-        prefs.kidFriendlyMeals
-      ) {
-        text += "Saved Preferences:\n";
-
-        if (prefs.dislikedIngredients.length) {
-          text += `- Avoid: ${prefs.dislikedIngredients.join(", ")}\n`;
-        }
-        if (prefs.preferredMealStyle) {
-          text += `- Meal style: ${prefs.preferredMealStyle}\n`;
-        }
-        if (prefs.prioritizeHighProtein) {
-          text += "- Prioritize high protein\n";
-        }
-        if (prefs.prioritizeCheapMeals) {
-          text += "- Prioritize cheaper meals\n";
-        }
-        if (prefs.prioritizeQuickMeals) {
-          text += "- Prioritize quick meals\n";
-        }
-        if (prefs.kidFriendlyMeals) {
-          text += "- Prefer kid-friendly meals\n";
-        }
-
-        text += "\n===================\n\n";
-      }
-
-      for (const day of days) {
-        const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
-
-        text += `${capitalize(day)}\n`;
-        text += `${dayData.busy ? "Busy Day" : "Lighter Day"}\n\n`;
-
-        text += "Tasks:\n";
-        if (dayData.tasks.length) {
-          dayData.tasks.forEach(task => {
-            text += `- ${task}\n`;
-          });
-        } else {
-          text += "- None\n";
-        }
-
-        text += "\nMeals:\n";
-        if (dayData.meals.length) {
-          dayData.meals.forEach(meal => {
-            const tags = getMealTagsFromCache(day, meal);
-            const tagSuffix = Array.isArray(tags) && tags.length ? ` (${tags.join(", ")})` : "";
-            text += `- ${meal}${tagSuffix}\n`;
-          });
-        } else {
-          text += "- None\n";
-        }
-
-        text += "\n-------------------\n\n";
-      }
-
-      text += "Grocery List:\n";
-      const flatGrocery = flattenGroceryList(currentPlan.groceryList);
-
-      if (flatGrocery.length) {
-        flatGrocery.forEach(item => {
-          text += `- ${item}\n`;
-        });
-      } else {
-        text += "- None\n";
+      const text = planToReadableText();
+      if (!text) {
+        setStatus('Nothing to copy yet.', true);
+        return;
       }
 
       try {
         await navigator.clipboard.writeText(text);
-        setStatus("Readable plan copied.");
+        setStatus('Readable plan copied.');
       } catch (error) {
         console.error(error);
-        setStatus("Could not copy plan.");
+        setStatus('Copy failed. Your browser blocked clipboard access.', true);
       }
     }
 
-    function capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
+    function getMealCacheKey(dayName, mealName) {
+      return `${dayName}__${mealName}`;
+    }
+
+    function getCachedMealTags(dayName, mealName) {
+      return state.mealTagsCache[getMealCacheKey(dayName, mealName)] || [];
+    }
+
+    async function hydrateMealTags(dayName, mealName) {
+      const key = getMealCacheKey(dayName, mealName);
+      if (state.mealTagsCache[key]?.length) return;
+
+      try {
+        const data = await callPlanApi({
+          mode: 'mealTags',
+          brainDump: state.brainDump,
+          existingPlan: state.plan,
+          mealName,
+          dayName,
+          preferences: state.preferences
+        });
+
+        state.mealTagsCache[key] = Array.isArray(data?.tags) ? dedupeStrings(data.tags) : [];
+        persistState();
+        renderPlanDays();
+      } catch (error) {
+        console.warn('Meal tags failed:', error);
+      }
+    }
+
+    async function openMealDetails(dayName, mealName) {
+      const key = getMealCacheKey(dayName, mealName);
+      openRecipeModal();
+      els.recipeTitle.textContent = mealName;
+      els.recipeMeta.textContent = `${dayName} • Loading...`;
+      els.recipeDescription.textContent = '';
+      els.recipeIngredients.innerHTML = '';
+      els.recipeSteps.innerHTML = '';
+
+      try {
+        let details = state.mealDetailsCache[key];
+        if (!details) {
+          details = await callPlanApi({
+            mode: 'mealDetails',
+            brainDump: state.brainDump,
+            existingPlan: state.plan,
+            mealName,
+            dayName,
+            preferences: state.preferences
+          });
+          state.mealDetailsCache[key] = details;
+          persistState();
+        }
+
+        els.recipeTitle.textContent = details?.title || mealName;
+        els.recipeMeta.textContent = [dayName, details?.prepTime].filter(Boolean).join(' • ');
+        els.recipeDescription.textContent = details?.description || 'No description available.';
+        els.recipeIngredients.innerHTML = '';
+        (details?.ingredients || []).forEach((ingredient) => {
+          const li = document.createElement('li');
+          li.textContent = ingredient;
+          els.recipeIngredients.appendChild(li);
+        });
+        els.recipeSteps.innerHTML = '';
+        (details?.steps || []).forEach((step) => {
+          const li = document.createElement('li');
+          li.textContent = step;
+          els.recipeSteps.appendChild(li);
+        });
+      } catch (error) {
+        console.error(error);
+        els.recipeMeta.textContent = `${dayName} • Could not load details`;
+        els.recipeDescription.textContent = error.message || 'Unable to fetch meal details.';
+      }
     }
 
     function savePreferences() {
-      userPreferences = getPreferencesFromForm();
-      renderPreferenceSummary(userPreferences);
-      clearMealDetailsCache();
-      clearMealTagCache();
-      saveState();
-      setStatus("Preferences saved.");
+      state.preferences = readPreferencesFromInputs();
+      persistState();
+      closePreferences();
+      setStatus('Preferences saved.');
     }
 
     function clearPreferences() {
-      userPreferences = normalizePreferences({});
-      applyPreferencesToForm(userPreferences);
-      renderPreferenceSummary(userPreferences);
-      clearMealDetailsCache();
-      clearMealTagCache();
-      saveState();
-      render();
-      setStatus("Preferences cleared.");
+      state.preferences = { ...DEFAULT_PREFERENCES };
+      syncPreferencesToInputs();
+      persistState();
+      closePreferences();
+      setStatus('Preferences cleared.');
     }
 
-    generateBtn.addEventListener("click", generatePlan);
-    applyEditBtn.addEventListener("click", () => applyQuickEdit());
-    undoBtn.addEventListener("click", undoEdit);
-    copyReadableBtn.addEventListener("click", copyReadablePlan);
-    closeMealModalBtn.addEventListener("click", closeMealModal);
-    savePreferencesBtn.addEventListener("click", savePreferences);
-    clearPreferencesBtn.addEventListener("click", clearPreferences);
+    function startNewChat() {
+      clearLifeManagerStorage();
+      state.brainDump = '';
+      state.plan = null;
+      state.history = [];
+      state.groceryCollapse = {};
+      state.mealDetailsCache = {};
+      state.mealTagsCache = {};
+      els.manualEditInput.value = '';
+      closePreferences();
+      closeRecipeModal();
+      persistState();
+      render();
+      setStatus('Started a new chat.');
+      els.brainDumpInput.focus();
+    }
 
-    document.querySelectorAll(".smart-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const instruction = btn.getAttribute("data-smart-edit") || "";
-        applyQuickEdit(instruction);
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function attachEventListeners() {
+      els.brainDumpInput.addEventListener('input', (event) => {
+        state.brainDump = event.target.value;
+        persistState();
       });
-    });
 
-    mealModalBackdropEl.addEventListener("click", (event) => {
-      if (event.target === mealModalBackdropEl) {
-        closeMealModal();
-      }
-    });
+      els.generateBtn.addEventListener('click', generatePlan);
+      els.applyEditBtn.addEventListener('click', () => applyEdit());
+      els.manualEditInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          applyEdit();
+        }
+      });
+      els.smartEditChips.addEventListener('click', (event) => {
+        const chip = event.target.closest('[data-edit]');
+        if (!chip) return;
+        applyEdit(chip.dataset.edit);
+      });
+      els.undoBtn.addEventListener('click', undoLastEdit);
+      els.copyReadablePlanBtn.addEventListener('click', copyReadablePlan);
 
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && mealModalBackdropEl.classList.contains("show")) {
-        closeMealModal();
-      }
-    });
+      els.newChatBtn.addEventListener('click', startNewChat);
+      els.openPreferencesBtn.addEventListener('click', openPreferences);
+      els.closePreferencesBtn.addEventListener('click', closePreferences);
+      els.savePreferencesBtn.addEventListener('click', savePreferences);
+      els.clearPreferencesBtn.addEventListener('click', clearPreferences);
+      els.preferencesBackdrop.addEventListener('click', (event) => {
+        if (event.target === els.preferencesBackdrop) closePreferences();
+      });
 
-    brainDumpEl.addEventListener("input", () => {
-      saveState();
-    });
+      els.closeRecipeBtn.addEventListener('click', closeRecipeModal);
+      els.closeRecipeFooterBtn.addEventListener('click', closeRecipeModal);
+      els.recipeBackdrop.addEventListener('click', (event) => {
+        if (event.target === els.recipeBackdrop) closeRecipeModal();
+      });
 
-    loadState();
-    render();
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (!els.preferencesBackdrop.classList.contains('hidden')) closePreferences();
+        if (!els.recipeBackdrop.classList.contains('hidden')) closeRecipeModal();
+      });
+    }
+
+    function init() {
+      loadFromStorage();
+      attachEventListeners();
+      render();
+      setStatus(hasPlan() ? 'Loaded saved plan.' : '');
+    }
+
+    init();
   </script>
 </body>
 </html>
