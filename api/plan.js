@@ -3,6 +3,15 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "openai/gpt-4o-mini";
 
+const EMPTY_GROCERY_GROUPS = {
+  produce: [],
+  protein: [],
+  dairy: [],
+  pantry: [],
+  frozen: [],
+  other: []
+};
+
 const EMPTY_PLAN = {
   monday: { tasks: [], meals: [], busy: false },
   tuesday: { tasks: [], meals: [], busy: false },
@@ -11,7 +20,7 @@ const EMPTY_PLAN = {
   friday: { tasks: [], meals: [], busy: false },
   saturday: { tasks: [], meals: [], busy: false },
   sunday: { tasks: [], meals: [], busy: false },
-  groceryList: []
+  groceryList: EMPTY_GROCERY_GROUPS
 };
 
 function safeArray(value) {
@@ -26,6 +35,28 @@ function safeDay(day) {
   };
 }
 
+function normalizeGroceryList(groceryList) {
+  if (Array.isArray(groceryList)) {
+    return {
+      produce: [],
+      protein: [],
+      dairy: [],
+      pantry: safeArray(groceryList),
+      frozen: [],
+      other: []
+    };
+  }
+
+  return {
+    produce: safeArray(groceryList?.produce),
+    protein: safeArray(groceryList?.protein),
+    dairy: safeArray(groceryList?.dairy),
+    pantry: safeArray(groceryList?.pantry),
+    frozen: safeArray(groceryList?.frozen),
+    other: safeArray(groceryList?.other)
+  };
+}
+
 function normalizePlan(plan) {
   return {
     monday: safeDay(plan?.monday),
@@ -35,7 +66,7 @@ function normalizePlan(plan) {
     friday: safeDay(plan?.friday),
     saturday: safeDay(plan?.saturday),
     sunday: safeDay(plan?.sunday),
-    groceryList: safeArray(plan?.groceryList)
+    groceryList: normalizeGroceryList(plan?.groceryList)
   };
 }
 
@@ -70,7 +101,7 @@ async function callOpenRouter(messages) {
     body: JSON.stringify({
       model: MODEL,
       messages,
-      temperature: 0.7,
+      temperature: 0.65,
       response_format: { type: "json_object" }
     })
   });
@@ -107,7 +138,14 @@ Return ONLY valid JSON in this exact format:
   "friday": { "tasks": [], "meals": [], "busy": false },
   "saturday": { "tasks": [], "meals": [], "busy": false },
   "sunday": { "tasks": [], "meals": [], "busy": false },
-  "groceryList": []
+  "groceryList": {
+    "produce": [],
+    "protein": [],
+    "dairy": [],
+    "pantry": [],
+    "frozen": [],
+    "other": []
+  }
 }
 
 Rules:
@@ -121,7 +159,17 @@ Rules:
 - Never leave a broken meal
 - If a disliked or restricted ingredient is a core part of a meal, replace the entire meal with a complete alternative
 - Grocery list must match meals
-- Keep wording concise and human
+
+Grocery grouping rules:
+- Group items into exactly these sections: produce, protein, dairy, pantry, frozen, other
+- Always include all six section keys even if empty
+- Consolidate duplicates
+- Remove obvious redundancy
+- If meals call for both "chicken" and "chicken breast", combine into the clearest single item
+- Put uncategorized items into other
+- Keep grocery items concise and useful for real shopping
+
+Keep wording concise and human
       `.trim()
     },
     {
@@ -147,20 +195,65 @@ Return ONLY valid JSON in this exact format:
   "friday": { "tasks": [], "meals": [], "busy": false },
   "saturday": { "tasks": [], "meals": [], "busy": false },
   "sunday": { "tasks": [], "meals": [], "busy": false },
-  "groceryList": []
+  "groceryList": {
+    "produce": [],
+    "protein": [],
+    "dairy": [],
+    "pantry": [],
+    "frozen": [],
+    "other": []
+  }
 }
+
+You must act like a smart planning assistant, not a literal text editor.
 
 Rules:
 - Apply only what the user requested
 - Keep everything else the same
 - Do not randomly rewrite the whole plan
 - Do not drop explicit tasks unless the user clearly asks for that
+- Do not add new tasks unless the user's edit explicitly asks for new tasks or clearly requires them
+- Broad optimization edits like "make this week easier" or "make weekdays lighter" should reorganize, simplify, or shift flexible tasks, not invent new ones
+- Meal-focused edits may change meals without adding unrelated tasks
 - Meals must stay realistic
 - Respect exact food dislikes and restrictions from the brain dump
 - Never leave a broken meal
 - If removing a core ingredient from a meal, replace the entire meal with a complete alternative
 - Grocery list must match meals
 - No extra text
+
+Smart edit interpretation rules:
+- You are allowed to interpret broad requests intelligently
+- If the user says "make this week easier", reduce overload, simplify meals, and make lighter days where possible without deleting important obligations
+- If the user says "make meals cheaper", choose lower-cost practical meals and update grocery list accordingly
+- If the user says "higher protein", improve meals toward protein-focused options
+- If the user says "reduce cooking time", prefer faster meals and lower-friction prep
+- If the user says "make weekdays lighter", shift flexible items away from weekdays when reasonable
+- If the user says "more variety", diversify meals without breaking restrictions
+- If the user says "healthier", lean toward balanced realistic meals, not extreme diet meals
+- If the user says "kid-friendly", choose simpler, broadly appealing meals
+- If the user says "busy week", simplify wherever possible but keep core obligations
+- If the user says "cheaper", prefer affordable proteins and pantry-friendly meals
+- If the user says "cut grocery budget in half", aggressively simplify meals and choose lower-cost staples while keeping the plan usable
+- If the request is vague, make the smallest useful change that matches the intent
+
+Task handling rules:
+- Keep explicit appointments and fixed commitments
+- Flexible tasks may be shifted to nearby days if the user's request implies reducing overload
+- Try not to overload any single day unless required by explicit commitments
+- Aim for 2-3 core tasks per day when possible, but do not lose explicit user tasks
+
+Meal handling rules:
+- If a day becomes lighter, meals can also become simpler
+- If the user requests convenience, use faster meals, leftovers, repeats, or easier lunches when appropriate
+- If the user requests cheap meals, prefer simple staples like rice bowls, pasta, burrito bowls, sandwiches, eggs, beans, ground turkey, tuna, oats, potatoes, frozen veggies, and similar practical budget foods
+
+Grocery grouping rules:
+- Group items into exactly these sections: produce, protein, dairy, pantry, frozen, other
+- Always include all six section keys even if empty
+- Consolidate duplicates
+- Remove obvious redundancy
+- Use the clearest single item name when similar items overlap
       `.trim()
     },
     {
