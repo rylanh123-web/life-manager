@@ -30,7 +30,8 @@
     }
 
     textarea,
-    input {
+    input,
+    select {
       width: 100%;
       padding: 12px;
       margin-bottom: 10px;
@@ -88,7 +89,8 @@
 
     button:disabled,
     textarea:disabled,
-    input:disabled {
+    input:disabled,
+    select:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
@@ -115,6 +117,7 @@
       display: block;
     }
 
+    .pref-section,
     .smart-section {
       background: white;
       border: 1px solid #e8e8ef;
@@ -123,6 +126,7 @@
       margin-bottom: 14px;
     }
 
+    .pref-title,
     .smart-title {
       font-size: 13px;
       text-transform: uppercase;
@@ -130,6 +134,59 @@
       color: #666;
       font-weight: 700;
       margin-bottom: 10px;
+    }
+
+    .pref-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .pref-card {
+      background: #fafafe;
+      border: 1px solid #ececf3;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .pref-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #555;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .checkbox-row input {
+      width: auto;
+      margin: 0;
+    }
+
+    .memory-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .memory-chip {
+      background: #f4f4f7;
+      color: #333;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid #e5e7eb;
     }
 
     .smart-chip-row {
@@ -200,6 +257,18 @@
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 8px;
+      align-items: center;
+    }
+
+    .meal-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid #ececf3;
+      border-radius: 12px;
+      background: #fff;
+      min-width: 180px;
     }
 
     .meal-chip {
@@ -211,10 +280,36 @@
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
+      text-align: left;
+      width: fit-content;
+      max-width: 100%;
     }
 
     .meal-chip:hover {
       background: #fff3db;
+    }
+
+    .meal-tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 18px;
+    }
+
+    .meal-tag {
+      background: #f4f4f7;
+      color: #444;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .meal-tag.loading {
+      color: #777;
+      background: #fafafa;
     }
 
     .empty-text {
@@ -375,6 +470,14 @@
         width: 100%;
       }
 
+      .pref-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .meal-block {
+        width: 100%;
+      }
+
       .modal {
         padding: 14px;
       }
@@ -389,10 +492,63 @@
   <div class="container">
     <h1>Life Manager</h1>
     <div class="subtext">
-      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, use one-tap smart edits, click meals for simple details, and copy the week in readable text.
+      Turn a messy brain dump into a usable week. Generate your plan, edit it in plain English, use one-tap smart edits, click meals for simple details, copy the week in readable text, save meal preferences across sessions, and show helpful meal tags.
     </div>
 
     <textarea id="brainDump" placeholder="Dump your week here... work schedule, gym, appointments, groceries, food dislikes, events, everything."></textarea>
+
+    <div class="pref-section">
+      <div class="pref-title">Preference Memory</div>
+
+      <div class="pref-grid">
+        <div class="pref-card">
+          <div class="pref-label">Avoid Ingredients</div>
+          <input id="avoidIngredientsInput" placeholder="chicken, mushrooms, olives" />
+        </div>
+
+        <div class="pref-card">
+          <div class="pref-label">Preferred Meal Style</div>
+          <select id="mealStyleSelect">
+            <option value="">No specific style</option>
+            <option value="balanced">Balanced</option>
+            <option value="quick and simple">Quick and simple</option>
+            <option value="cheap and practical">Cheap and practical</option>
+            <option value="high protein">High protein</option>
+            <option value="family friendly">Family friendly</option>
+          </select>
+        </div>
+
+        <div class="pref-card">
+          <div class="pref-label">Meal Priorities</div>
+          <label class="checkbox-row">
+            <input id="highProteinCheckbox" type="checkbox" />
+            <span>Prioritize high protein</span>
+          </label>
+          <label class="checkbox-row">
+            <input id="cheapMealsCheckbox" type="checkbox" />
+            <span>Prioritize cheaper meals</span>
+          </label>
+          <label class="checkbox-row">
+            <input id="quickMealsCheckbox" type="checkbox" />
+            <span>Prioritize quick meals</span>
+          </label>
+          <label class="checkbox-row">
+            <input id="kidFriendlyCheckbox" type="checkbox" />
+            <span>Prefer kid-friendly meals</span>
+          </label>
+        </div>
+
+        <div class="pref-card">
+          <div class="pref-label">Saved Memory Summary</div>
+          <div id="memorySummary" class="memory-summary"></div>
+        </div>
+      </div>
+
+      <div class="button-row" style="margin-top: 12px; margin-bottom: 0;">
+        <button id="savePreferencesBtn" class="secondary-btn" type="button">Save Preferences</button>
+        <button id="clearPreferencesBtn" class="ghost-btn" type="button">Clear Preferences</button>
+      </div>
+    </div>
 
     <div class="button-row">
       <button id="generateBtn" class="primary-btn">Generate</button>
@@ -442,11 +598,15 @@
     let currentPlan = null;
     let lastPlan = null;
     let mealDetailCache = {};
+    let mealTagCache = {};
+    let userPreferences = null;
 
     const STORAGE_KEYS = {
       plan: "lifeManagerPlan",
       brainDump: "lifeManagerBrainDump",
-      mealDetailCache: "lifeManagerMealDetailCache"
+      mealDetailCache: "lifeManagerMealDetailCache",
+      mealTagCache: "lifeManagerMealTagCache",
+      preferences: "lifeManagerPreferences"
     };
 
     const GROCERY_SECTIONS = ["produce", "protein", "dairy", "pantry", "frozen", "other"];
@@ -468,6 +628,16 @@
     const statusEl = document.getElementById("status");
     const warningBannerEl = document.getElementById("warningBanner");
     const planEl = document.getElementById("plan");
+
+    const avoidIngredientsInput = document.getElementById("avoidIngredientsInput");
+    const mealStyleSelect = document.getElementById("mealStyleSelect");
+    const highProteinCheckbox = document.getElementById("highProteinCheckbox");
+    const cheapMealsCheckbox = document.getElementById("cheapMealsCheckbox");
+    const quickMealsCheckbox = document.getElementById("quickMealsCheckbox");
+    const kidFriendlyCheckbox = document.getElementById("kidFriendlyCheckbox");
+    const savePreferencesBtn = document.getElementById("savePreferencesBtn");
+    const clearPreferencesBtn = document.getElementById("clearPreferencesBtn");
+    const memorySummaryEl = document.getElementById("memorySummary");
 
     const mealModalBackdropEl = document.getElementById("mealModalBackdrop");
     const mealModalTitleEl = document.getElementById("mealModalTitle");
@@ -493,6 +663,84 @@
         .replaceAll("'", "&#039;");
     }
 
+    function parseCommaList(value) {
+      return String(value || "")
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean);
+    }
+
+    function normalizePreferences(preferences) {
+      return {
+        dislikedIngredients: Array.isArray(preferences?.dislikedIngredients)
+          ? preferences.dislikedIngredients.filter(Boolean).map(String)
+          : [],
+        preferredMealStyle:
+          typeof preferences?.preferredMealStyle === "string"
+            ? preferences.preferredMealStyle.trim()
+            : "",
+        prioritizeHighProtein: Boolean(preferences?.prioritizeHighProtein),
+        prioritizeCheapMeals: Boolean(preferences?.prioritizeCheapMeals),
+        prioritizeQuickMeals: Boolean(preferences?.prioritizeQuickMeals),
+        kidFriendlyMeals: Boolean(preferences?.kidFriendlyMeals)
+      };
+    }
+
+    function getPreferencesFromForm() {
+      return normalizePreferences({
+        dislikedIngredients: parseCommaList(avoidIngredientsInput.value),
+        preferredMealStyle: mealStyleSelect.value,
+        prioritizeHighProtein: highProteinCheckbox.checked,
+        prioritizeCheapMeals: cheapMealsCheckbox.checked,
+        prioritizeQuickMeals: quickMealsCheckbox.checked,
+        kidFriendlyMeals: kidFriendlyCheckbox.checked
+      });
+    }
+
+    function applyPreferencesToForm(preferences) {
+      const p = normalizePreferences(preferences);
+
+      avoidIngredientsInput.value = p.dislikedIngredients.join(", ");
+      mealStyleSelect.value = p.preferredMealStyle || "";
+      highProteinCheckbox.checked = p.prioritizeHighProtein;
+      cheapMealsCheckbox.checked = p.prioritizeCheapMeals;
+      quickMealsCheckbox.checked = p.prioritizeQuickMeals;
+      kidFriendlyCheckbox.checked = p.kidFriendlyMeals;
+    }
+
+    function renderPreferenceSummary(preferences) {
+      const p = normalizePreferences(preferences);
+      const chips = [];
+
+      if (p.dislikedIngredients.length) {
+        chips.push(`Avoid: ${p.dislikedIngredients.join(", ")}`);
+      }
+      if (p.preferredMealStyle) {
+        chips.push(`Style: ${p.preferredMealStyle}`);
+      }
+      if (p.prioritizeHighProtein) {
+        chips.push("High protein");
+      }
+      if (p.prioritizeCheapMeals) {
+        chips.push("Cheaper meals");
+      }
+      if (p.prioritizeQuickMeals) {
+        chips.push("Quick meals");
+      }
+      if (p.kidFriendlyMeals) {
+        chips.push("Kid-friendly");
+      }
+
+      if (!chips.length) {
+        memorySummaryEl.innerHTML = `<div class="empty-text">No saved preference memory yet.</div>`;
+        return;
+      }
+
+      memorySummaryEl.innerHTML = chips
+        .map(chip => `<div class="memory-chip">${escapeHtml(chip)}</div>`)
+        .join("");
+    }
+
     function normalizeGroceryList(groceryList) {
       if (Array.isArray(groceryList)) {
         return {
@@ -515,6 +763,14 @@
       };
     }
 
+    function normalizeDay(day) {
+      return {
+        tasks: Array.isArray(day?.tasks) ? day.tasks.filter(Boolean).map(String) : [],
+        meals: Array.isArray(day?.meals) ? day.meals.filter(Boolean).map(String) : [],
+        busy: Boolean(day?.busy)
+      };
+    }
+
     function normalizePlan(plan) {
       if (!plan || typeof plan !== "object") return null;
 
@@ -531,14 +787,6 @@
       };
     }
 
-    function normalizeDay(day) {
-      return {
-        tasks: Array.isArray(day?.tasks) ? day.tasks.filter(Boolean).map(String) : [],
-        meals: Array.isArray(day?.meals) ? day.meals.filter(Boolean).map(String) : [],
-        busy: Boolean(day?.busy)
-      };
-    }
-
     function saveState() {
       try {
         if (currentPlan) {
@@ -546,6 +794,8 @@
         }
         localStorage.setItem(STORAGE_KEYS.brainDump, brainDumpEl.value || "");
         localStorage.setItem(STORAGE_KEYS.mealDetailCache, JSON.stringify(mealDetailCache || {}));
+        localStorage.setItem(STORAGE_KEYS.mealTagCache, JSON.stringify(mealTagCache || {}));
+        localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify(normalizePreferences(userPreferences)));
       } catch (error) {
         console.error("Failed to save local state", error);
       }
@@ -556,6 +806,8 @@
         const savedBrainDump = localStorage.getItem(STORAGE_KEYS.brainDump);
         const savedPlan = localStorage.getItem(STORAGE_KEYS.plan);
         const savedMealCache = localStorage.getItem(STORAGE_KEYS.mealDetailCache);
+        const savedMealTagCache = localStorage.getItem(STORAGE_KEYS.mealTagCache);
+        const savedPreferences = localStorage.getItem(STORAGE_KEYS.preferences);
 
         if (savedBrainDump) {
           brainDumpEl.value = savedBrainDump;
@@ -568,6 +820,27 @@
             mealDetailCache = {};
           }
         }
+
+        if (savedMealTagCache) {
+          try {
+            mealTagCache = JSON.parse(savedMealTagCache) || {};
+          } catch {
+            mealTagCache = {};
+          }
+        }
+
+        if (savedPreferences) {
+          try {
+            userPreferences = normalizePreferences(JSON.parse(savedPreferences));
+          } catch {
+            userPreferences = normalizePreferences({});
+          }
+        } else {
+          userPreferences = normalizePreferences({});
+        }
+
+        applyPreferencesToForm(userPreferences);
+        renderPreferenceSummary(userPreferences);
 
         if (savedPlan) {
           try {
@@ -594,6 +867,14 @@
       quickEditInputEl.disabled = loading;
       generateBtn.disabled = loading;
       applyEditBtn.disabled = loading;
+      savePreferencesBtn.disabled = loading;
+      clearPreferencesBtn.disabled = loading;
+      avoidIngredientsInput.disabled = loading;
+      mealStyleSelect.disabled = loading;
+      highProteinCheckbox.disabled = loading;
+      cheapMealsCheckbox.disabled = loading;
+      quickMealsCheckbox.disabled = loading;
+      kidFriendlyCheckbox.disabled = loading;
       copyReadableBtn.disabled = loading || !currentPlan;
       undoBtn.disabled = loading || !lastPlan;
 
@@ -613,6 +894,24 @@
       return items.map(item => `<li>${escapeHtml(item)}</li>`).join("");
     }
 
+    function renderMealTags(day, meal) {
+      const tags = getMealTagsFromCache(day, meal);
+
+      if (tags === "__loading__") {
+        return `<div class="meal-tags-row"><span class="meal-tag loading">Loading tags...</span></div>`;
+      }
+
+      if (!Array.isArray(tags) || !tags.length) {
+        return `<div class="meal-tags-row"></div>`;
+      }
+
+      return `
+        <div class="meal-tags-row">
+          ${tags.map(tag => `<span class="meal-tag">${escapeHtml(tag)}</span>`).join("")}
+        </div>
+      `;
+    }
+
     function renderMealChips(day, meals) {
       if (!Array.isArray(meals) || !meals.length) {
         return `<div class="empty-text">No meals planned.</div>`;
@@ -621,14 +920,17 @@
       return `
         <div class="meal-chip-list">
           ${meals.map(meal => `
-            <button
-              class="meal-chip"
-              data-day="${escapeHtml(day)}"
-              data-meal="${escapeHtml(meal)}"
-              type="button"
-            >
-              ${escapeHtml(meal)}
-            </button>
+            <div class="meal-block">
+              <button
+                class="meal-chip"
+                data-day="${escapeHtml(day)}"
+                data-meal="${escapeHtml(meal)}"
+                type="button"
+              >
+                ${escapeHtml(meal)}
+              </button>
+              ${renderMealTags(day, meal)}
+            </div>
           `).join("")}
         </div>
       `;
@@ -735,10 +1037,16 @@
 
       attachMealChipEvents();
       attachGroceryToggleEvents();
+      loadVisibleMealTags();
     }
 
     function clearMealDetailsCache() {
       mealDetailCache = {};
+      saveState();
+    }
+
+    function clearMealTagCache() {
+      mealTagCache = {};
       saveState();
     }
 
@@ -760,6 +1068,11 @@
       return data;
     }
 
+    function currentPreferencesPayload() {
+      userPreferences = getPreferencesFromForm();
+      return normalizePreferences(userPreferences);
+    }
+
     async function generatePlan() {
       const brainDump = brainDumpEl.value.trim();
 
@@ -775,13 +1088,15 @@
 
         const data = await postPlan({
           mode: "generate",
-          brainDump
+          brainDump,
+          preferences: currentPreferencesPayload()
         });
 
         currentPlan = normalizePlan(data);
         lastPlan = null;
         undoBtn.disabled = true;
         clearMealDetailsCache();
+        clearMealTagCache();
 
         render();
         saveState();
@@ -798,6 +1113,7 @@
           currentPlan = normalizePlan(error.fallback);
           lastPlan = null;
           clearMealDetailsCache();
+          clearMealTagCache();
           render();
           saveState();
           showWarning("The API failed, so a fallback empty plan was loaded.");
@@ -838,11 +1154,13 @@
           mode: "quickEdit",
           brainDump: brainDumpEl.value.trim(),
           existingPlan: currentPlan,
-          editInstruction: input
+          editInstruction: input,
+          preferences: currentPreferencesPayload()
         });
 
         currentPlan = normalizePlan(data);
         clearMealDetailsCache();
+        clearMealTagCache();
         render();
         saveState();
         undoBtn.disabled = false;
@@ -858,6 +1176,7 @@
         if (error.fallback) {
           currentPlan = normalizePlan(error.fallback);
           clearMealDetailsCache();
+          clearMealTagCache();
           render();
           saveState();
           showWarning("The API failed while applying your edit, so a fallback empty plan was loaded.");
@@ -877,6 +1196,7 @@
       currentPlan = normalizePlan(lastPlan);
       lastPlan = null;
       clearMealDetailsCache();
+      clearMealTagCache();
       render();
       saveState();
       undoBtn.disabled = true;
@@ -897,8 +1217,31 @@
       mealModalContentEl.innerHTML = "";
     }
 
-    function mealCacheKey(dayName, mealName) {
-      return `${String(dayName).toLowerCase()}__${String(mealName).toLowerCase()}`;
+    function mealDetailCacheKey(dayName, mealName) {
+      const prefKey = JSON.stringify(normalizePreferences(userPreferences));
+      return `detail__${String(dayName).toLowerCase()}__${String(mealName).toLowerCase()}__${prefKey}`;
+    }
+
+    function mealTagCacheKey(dayName, mealName) {
+      const prefKey = JSON.stringify(normalizePreferences(userPreferences));
+      return `tag__${String(dayName).toLowerCase()}__${String(mealName).toLowerCase()}__${prefKey}`;
+    }
+
+    function getMealTagsFromCache(dayName, mealName) {
+      userPreferences = getPreferencesFromForm();
+      return mealTagCache[mealTagCacheKey(dayName, mealName)];
+    }
+
+    function setMealTagsLoading(dayName, mealName) {
+      userPreferences = getPreferencesFromForm();
+      mealTagCache[mealTagCacheKey(dayName, mealName)] = "__loading__";
+      saveState();
+    }
+
+    function setMealTagsCache(dayName, mealName, tags) {
+      userPreferences = getPreferencesFromForm();
+      mealTagCache[mealTagCacheKey(dayName, mealName)] = Array.isArray(tags) ? tags : [];
+      saveState();
     }
 
     function renderMealDetailsContent(details) {
@@ -923,7 +1266,8 @@
     async function openMealDetails(dayName, mealName) {
       if (!currentPlan) return;
 
-      const cacheKey = mealCacheKey(dayName, mealName);
+      userPreferences = getPreferencesFromForm();
+      const cacheKey = mealDetailCacheKey(dayName, mealName);
       openMealModal(mealName, `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} meal`);
 
       if (mealDetailCache[cacheKey]) {
@@ -943,7 +1287,8 @@
           brainDump: brainDumpEl.value.trim(),
           existingPlan: currentPlan,
           mealName,
-          dayName
+          dayName,
+          preferences: currentPreferencesPayload()
         });
 
         mealDetailCache[cacheKey] = data;
@@ -959,6 +1304,46 @@
       }
     }
 
+    async function fetchMealTags(dayName, mealName) {
+      if (!currentPlan) return;
+
+      const existing = getMealTagsFromCache(dayName, mealName);
+      if (existing !== undefined) return;
+
+      setMealTagsLoading(dayName, mealName);
+      render();
+
+      try {
+        const data = await postPlan({
+          mode: "mealTags",
+          brainDump: brainDumpEl.value.trim(),
+          existingPlan: currentPlan,
+          mealName,
+          dayName,
+          preferences: currentPreferencesPayload()
+        });
+
+        setMealTagsCache(dayName, mealName, data.tags || []);
+        render();
+      } catch (error) {
+        console.error(error);
+        setMealTagsCache(dayName, mealName, []);
+        render();
+      }
+    }
+
+    function loadVisibleMealTags() {
+      if (!currentPlan) return;
+
+      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+      for (const day of days) {
+        const meals = Array.isArray(currentPlan[day]?.meals) ? currentPlan[day].meals : [];
+        meals.forEach(meal => {
+          fetchMealTags(day, meal);
+        });
+      }
+    }
+
     function flattenGroceryList(groceryList) {
       const normalized = normalizeGroceryList(groceryList);
       return GROCERY_SECTIONS.flatMap(section => normalized[section] || []);
@@ -969,6 +1354,40 @@
 
       const days = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
       let text = "";
+
+      const prefs = normalizePreferences(userPreferences);
+
+      if (
+        prefs.dislikedIngredients.length ||
+        prefs.preferredMealStyle ||
+        prefs.prioritizeHighProtein ||
+        prefs.prioritizeCheapMeals ||
+        prefs.prioritizeQuickMeals ||
+        prefs.kidFriendlyMeals
+      ) {
+        text += "Saved Preferences:\n";
+
+        if (prefs.dislikedIngredients.length) {
+          text += `- Avoid: ${prefs.dislikedIngredients.join(", ")}\n`;
+        }
+        if (prefs.preferredMealStyle) {
+          text += `- Meal style: ${prefs.preferredMealStyle}\n`;
+        }
+        if (prefs.prioritizeHighProtein) {
+          text += "- Prioritize high protein\n";
+        }
+        if (prefs.prioritizeCheapMeals) {
+          text += "- Prioritize cheaper meals\n";
+        }
+        if (prefs.prioritizeQuickMeals) {
+          text += "- Prioritize quick meals\n";
+        }
+        if (prefs.kidFriendlyMeals) {
+          text += "- Prefer kid-friendly meals\n";
+        }
+
+        text += "\n===================\n\n";
+      }
 
       for (const day of days) {
         const dayData = currentPlan[day] || { tasks: [], meals: [], busy: false };
@@ -988,7 +1407,9 @@
         text += "\nMeals:\n";
         if (dayData.meals.length) {
           dayData.meals.forEach(meal => {
-            text += `- ${meal}\n`;
+            const tags = getMealTagsFromCache(day, meal);
+            const tagSuffix = Array.isArray(tags) && tags.length ? ` (${tags.join(", ")})` : "";
+            text += `- ${meal}${tagSuffix}\n`;
           });
         } else {
           text += "- None\n";
@@ -1021,11 +1442,33 @@
       return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
+    function savePreferences() {
+      userPreferences = getPreferencesFromForm();
+      renderPreferenceSummary(userPreferences);
+      clearMealDetailsCache();
+      clearMealTagCache();
+      saveState();
+      setStatus("Preferences saved.");
+    }
+
+    function clearPreferences() {
+      userPreferences = normalizePreferences({});
+      applyPreferencesToForm(userPreferences);
+      renderPreferenceSummary(userPreferences);
+      clearMealDetailsCache();
+      clearMealTagCache();
+      saveState();
+      render();
+      setStatus("Preferences cleared.");
+    }
+
     generateBtn.addEventListener("click", generatePlan);
     applyEditBtn.addEventListener("click", () => applyQuickEdit());
     undoBtn.addEventListener("click", undoEdit);
     copyReadableBtn.addEventListener("click", copyReadablePlan);
     closeMealModalBtn.addEventListener("click", closeMealModal);
+    savePreferencesBtn.addEventListener("click", savePreferences);
+    clearPreferencesBtn.addEventListener("click", clearPreferences);
 
     document.querySelectorAll(".smart-btn").forEach(btn => {
       btn.addEventListener("click", () => {
