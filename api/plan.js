@@ -1,7 +1,16 @@
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "openai/gpt-4o-mini";
+
+const DAY_NAMES = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday"
+];
 
 const EMPTY_GROCERY_GROUPS = {
   produce: [],
@@ -23,8 +32,58 @@ const EMPTY_PLAN = {
   groceryList: EMPTY_GROCERY_GROUPS
 };
 
+const EMPTY_CALENDAR_CONTEXT = {
+  monday: [],
+  tuesday: [],
+  wednesday: [],
+  thursday: [],
+  friday: [],
+  saturday: [],
+  sunday: []
+};
+
 function safeArray(value) {
   return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+}
+
+function safeTrimmedString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeTime(value) {
+  if (typeof value !== "string") return "";
+
+  const raw = value.trim();
+  if (!raw) return "";
+
+  if (/^\d{1,2}:\d{2}$/.test(raw)) {
+    const [h, m] = raw.split(":");
+    const hour = Number(h);
+    const min = Number(m);
+    if (hour >= 0 && hour <= 23 && min >= 0 && min <= 59) {
+      return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+    }
+    return raw;
+  }
+
+  if (/^\d{1,2}$/.test(raw)) {
+    const hour = Number(raw);
+    if (hour >= 0 && hour <= 23) {
+      return `${String(hour).padStart(2, "0")}:00`;
+    }
+    return raw;
+  }
+
+  if (/^\d{3,4}$/.test(raw)) {
+    const padded = raw.padStart(4, "0");
+    const hour = Number(padded.slice(0, 2));
+    const min = Number(padded.slice(2, 4));
+    if (hour >= 0 && hour <= 23 && min >= 0 && min <= 59) {
+      return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+    }
+  }
+
+  return raw;
 }
 
 function safeDay(day) {
@@ -73,10 +132,7 @@ function normalizePlan(plan) {
 function normalizePreferences(preferences) {
   return {
     dislikedIngredients: safeArray(preferences?.dislikedIngredients),
-    preferredMealStyle:
-      typeof preferences?.preferredMealStyle === "string"
-        ? preferences.preferredMealStyle.trim()
-        : "",
+    preferredMealStyle: safeTrimmedString(preferences?.preferredMealStyle),
     prioritizeHighProtein: Boolean(preferences?.prioritizeHighProtein),
     prioritizeCheapMeals: Boolean(preferences?.prioritizeCheapMeals),
     prioritizeQuickMeals: Boolean(preferences?.prioritizeQuickMeals),
@@ -84,40 +140,84 @@ function normalizePreferences(preferences) {
   };
 }
 
+function normalizeCalendarEvent(event) {
+  if (!event || typeof event !== "object") return null;
+
+  const title = safeTrimmedString(event.title);
+  const start = normalizeTime(event.start);
+  const end = normalizeTime(event.end);
+  const note = safeTrimmedString(event.note);
+
+  if (!title && !start && !end && !note) return null;
+
+  return {
+    title: title || "Untitled event",
+    start,
+    end,
+    note,
+    fixed: event.fixed !== false,
+    allDay: Boolean(event.allDay)
+  };
+}
+
+function normalizeCalendarContext(calendarContext) {
+  const normalized = { ...EMPTY_CALENDAR_CONTEXT };
+
+  for (const day of DAY_NAMES) {
+    const events = Array.isArray(calendarContext?.[day]) ? calendarContext[day] : [];
+    normalized[day] = events.map(normalizeCalendarEvent).filter(Boolean);
+  }
+
+  return normalized;
+}
+
+function hasCalendarContext(calendarContext) {
+  return DAY_NAMES.some((day) => Array.isArray(calendarContext?.[day]) && calendarContext[day].length > 0);
+}
+
+function formatCalendarEvent(event) {
+  const timePart = event.allDay
+    ? "all day"
+    : event.start && event.end
+      ? `${event.start}-${event.end}`
+      : event.start
+        ? `starts ${event.start}`
+        : event.end
+          ? `ends ${event.end}`
+          : "time unspecified";
+
+  const fixedPart = event.fixed ? "fixed" : "flexible";
+  const notePart = event.note ? ` (${event.note})` : "";
+
+  return `${event.title} [${timePart}, ${fixedPart}]${notePart}`;
+}
+
+function calendarContextToPrompt(calendarContext) {
+  const normalized = normalizeCalendarContext(calendarContext);
+
+  if (!hasCalendarContext(normalized)) {
+    return "No calendar context";
+  }
+
+  return DAY_NAMES.map((day) => {
+    const events = normalized[day];
+    if (!events.length) return `- ${day}: open`;
+    return `- ${day}: ${events.map(formatCalendarEvent).join("; ")}`;
+  }).join("\n");
+}
+
 function preferencesToPrompt(preferences) {
   const p = normalizePreferences(preferences);
-
   const lines = [];
 
-  if (p.dislikedIngredients.length) {
-    lines.push(`- Disliked or banned ingredients: ${p.dislikedIngredients.join(", ")}`);
-  }
+  if (p.dislikedIngredients.length) lines.push(`- Disliked: ${p.dislikedIngredients.join(", ")}`);
+  if (p.preferredMealStyle) lines.push(`- Style: ${p.preferredMealStyle}`);
+  if (p.prioritizeHighProtein) lines.push("- High protein");
+  if (p.prioritizeCheapMeals) lines.push("- Cheap meals");
+  if (p.prioritizeQuickMeals) lines.push("- Quick meals");
+  if (p.kidFriendlyMeals) lines.push("- Kid-friendly");
 
-  if (p.preferredMealStyle) {
-    lines.push(`- Preferred meal style: ${p.preferredMealStyle}`);
-  }
-
-  if (p.prioritizeHighProtein) {
-    lines.push(`- Prioritize higher-protein meals`);
-  }
-
-  if (p.prioritizeCheapMeals) {
-    lines.push(`- Prioritize cheaper meals and grocery choices`);
-  }
-
-  if (p.prioritizeQuickMeals) {
-    lines.push(`- Prioritize quick low-friction meals`);
-  }
-
-  if (p.kidFriendlyMeals) {
-    lines.push(`- Prefer kid-friendly meals when possible`);
-  }
-
-  if (!lines.length) {
-    return "No saved preference memory.";
-  }
-
-  return lines.join("\n");
+  return lines.length ? lines.join("\n") : "No saved preferences";
 }
 
 function extractJson(text) {
@@ -126,12 +226,12 @@ function extractJson(text) {
   try {
     return JSON.parse(text);
   } catch {
-    const firstBrace = text.indexOf("{");
-    const lastBrace = text.lastIndexOf("}");
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
 
-    if (firstBrace !== -1 && lastBrace !== -1) {
+    if (start !== -1 && end !== -1) {
       try {
-        return JSON.parse(text.slice(firstBrace, lastBrace + 1));
+        return JSON.parse(text.slice(start, end + 1));
       } catch {
         return null;
       }
@@ -157,13 +257,11 @@ async function callOpenRouter(messages) {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenRouter request failed: ${response.status} ${errorText}`);
+    throw new Error(`OpenRouter error: ${response.status}`);
   }
 
   const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content || "";
-  const parsed = extractJson(content);
+  const parsed = extractJson(data?.choices?.[0]?.message?.content || "");
 
   if (!parsed) {
     throw new Error("Invalid JSON from model");
@@ -172,172 +270,91 @@ async function callOpenRouter(messages) {
   return parsed;
 }
 
-function buildGenerateMessages(brainDump, preferences) {
+function buildGenerateMessages(brainDump, preferences, calendarContext) {
+  const normalizedCalendarContext = normalizeCalendarContext(calendarContext);
+
   return [
     {
       role: "system",
       content: `
-You are generating a weekly life plan for a real product called Life Manager.
+You are generating a weekly life plan for Life Manager.
 
-Return ONLY valid JSON in this exact format:
-{
-  "monday": { "tasks": [], "meals": [], "busy": false },
-  "tuesday": { "tasks": [], "meals": [], "busy": false },
-  "wednesday": { "tasks": [], "meals": [], "busy": false },
-  "thursday": { "tasks": [], "meals": [], "busy": false },
-  "friday": { "tasks": [], "meals": [], "busy": false },
-  "saturday": { "tasks": [], "meals": [], "busy": false },
-  "sunday": { "tasks": [], "meals": [], "busy": false },
-  "groceryList": {
-    "produce": [],
-    "protein": [],
-    "dairy": [],
-    "pantry": [],
-    "frozen": [],
-    "other": []
-  }
-}
+Return ONLY valid JSON:
+{"monday":{"tasks":[],"meals":[],"busy":false},"tuesday":{"tasks":[],"meals":[],"busy":false},"wednesday":{"tasks":[],"meals":[],"busy":false},"thursday":{"tasks":[],"meals":[],"busy":false},"friday":{"tasks":[],"meals":[],"busy":false},"saturday":{"tasks":[],"meals":[],"busy":false},"sunday":{"tasks":[],"meals":[],"busy":false},"groceryList":{"produce":[],"protein":[],"dairy":[],"pantry":[],"frozen":[],"other":[]}}
 
-Rules:
-- Only JSON
-- No extra text
-- Extract all explicit tasks from the brain dump
+Core rules:
+- Detect busy days from schedules, events, commitments, appointments, work blocks, gym, travel, date nights, and calendar context
+- Busy days must be marked busy: true
+- Use calendar context as a real constraint when deciding task load and meal simplicity
+- Fixed events and busy windows should shape the week automatically
+- Full workdays or stacked events should usually be busy
+- Evening events should usually mean simpler dinner and lighter task load
+- Calendar times may contain small user-entered typos like "17" instead of "17:00"; still use the event as planning context
+- Busy days = MAX 1-2 tasks, simpler meals
+- Non-busy days = 2-3 tasks, normal meals
+- Extract all explicit tasks and do not drop them
 - Distribute tasks realistically across the week
-- Aim for 2-3 core tasks per day when possible, but do not drop explicit user tasks
-- Meals should be practical and realistic
-- Respect exact food dislikes and restrictions from both the brain dump and saved preference memory
-- Never leave a broken meal
-- If a disliked or restricted ingredient is a core part of a meal, replace the entire meal with a complete alternative
-- Grocery list must match meals
+- Keep weekends lighter unless the input clearly suggests otherwise
+- Meals must be practical and realistic
+- Respect food dislikes from brain dump AND saved preferences
+- If removing a core ingredient, replace the ENTIRE meal with a complete alternative
+- Grocery list must match meals and be grouped by section
+- Consolidate duplicates where reasonable
+- Keep wording concise and human
 
-Grocery grouping rules:
-- Group items into exactly these sections: produce, protein, dairy, pantry, frozen, other
-- Always include all six section keys even if empty
-- Consolidate duplicates
-- Remove obvious redundancy
-- If meals call for both "chicken" and "chicken breast", combine into the clearest single item
-- Put uncategorized items into other
-- Keep grocery items concise and useful for real shopping
+Saved preferences:
+${preferencesToPrompt(preferences)}
 
-Preference memory rules:
-- Saved preferences should influence planning every time
-- If a saved preference conflicts with a meal idea, choose a meal that fits the saved preference
-- Saved preference memory should shape meals, not invent unrelated tasks
-- If both the brain dump and saved preferences mention food constraints, follow both
-
-Keep wording concise and human
-      `.trim()
+Calendar context:
+${calendarContextToPrompt(normalizedCalendarContext)}
+`.trim()
     },
     {
       role: "user",
-      content: `
-Brain dump:
-${brainDump}
-
-Saved preference memory:
-${preferencesToPrompt(preferences)}
-      `.trim()
+      content: `Brain dump:\n${brainDump}`
     }
   ];
 }
 
-function buildQuickEditMessages(brainDump, existingPlan, editInstruction, preferences) {
+function buildQuickEditMessages(brainDump, existingPlan, editInstruction, preferences, calendarContext) {
+  const normalizedCalendarContext = normalizeCalendarContext(calendarContext);
+
   return [
     {
       role: "system",
       content: `
 You are editing an existing weekly plan.
 
-Return ONLY valid JSON in this exact format:
-{
-  "monday": { "tasks": [], "meals": [], "busy": false },
-  "tuesday": { "tasks": [], "meals": [], "busy": false },
-  "wednesday": { "tasks": [], "meals": [], "busy": false },
-  "thursday": { "tasks": [], "meals": [], "busy": false },
-  "friday": { "tasks": [], "meals": [], "busy": false },
-  "saturday": { "tasks": [], "meals": [], "busy": false },
-  "sunday": { "tasks": [], "meals": [], "busy": false },
-  "groceryList": {
-    "produce": [],
-    "protein": [],
-    "dairy": [],
-    "pantry": [],
-    "frozen": [],
-    "other": []
-  }
-}
+Return ONLY valid JSON:
+{"monday":{"tasks":[],"meals":[],"busy":false},"tuesday":{"tasks":[],"meals":[],"busy":false},"wednesday":{"tasks":[],"meals":[],"busy":false},"thursday":{"tasks":[],"meals":[],"busy":false},"friday":{"tasks":[],"meals":[],"busy":false},"saturday":{"tasks":[],"meals":[],"busy":false},"sunday":{"tasks":[],"meals":[],"busy":false},"groceryList":{"produce":[],"protein":[],"dairy":[],"pantry":[],"frozen":[],"other":[]}}
 
-You must act like a smart planning assistant, not a literal text editor.
+Core rules:
+- Apply only what the user requested and keep everything else as intact as possible
+- Do NOT rewrite the whole plan unless the edit clearly requires it
+- Do NOT add new tasks unless the edit explicitly asks for it
+- Respect existing fixed commitments, busy windows, and calendar context
+- If calendar context makes a day constrained, do not overload that day
+- Broad edits like "easier week" should reduce overload and simplify meals
+- "make weekdays lighter" should shift flexible tasks toward more open days when possible
+- "cheaper meals" should use budget proteins and pantry staples
+- "faster meals" should favor quick, simple meals
+- Keep busy-day logic realistic after the edit
+- Calendar times may contain small user-entered typos like "17" instead of "17:00"; still use the event as planning context
+- Never leave broken meals
+- If a core ingredient is removed or disallowed, replace the ENTIRE meal with a complete alternative
+- Grocery list must match updated meals
+- Respect preferences
 
-Rules:
-- Apply only what the user requested
-- Keep everything else the same
-- Do not randomly rewrite the whole plan
-- Do not drop explicit tasks unless the user clearly asks for that
-- Do not add new tasks unless the user's edit explicitly asks for new tasks or clearly requires them
-- Broad optimization edits like "make this week easier" or "make weekdays lighter" should reorganize, simplify, or shift flexible tasks, not invent new ones
-- Meal-focused edits may change meals without adding unrelated tasks
-- Meals must stay realistic
-- Respect exact food dislikes and restrictions from both the brain dump and saved preference memory
-- Never leave a broken meal
-- If removing a core ingredient from a meal, replace the entire meal with a complete alternative
-- Grocery list must match meals
-- No extra text
+Saved preferences:
+${preferencesToPrompt(preferences)}
 
-Smart edit interpretation rules:
-- You are allowed to interpret broad requests intelligently
-- If the user says "make this week easier", reduce overload, simplify meals, and make lighter days where possible without deleting important obligations
-- If the user says "make meals cheaper", choose lower-cost practical meals and update grocery list accordingly
-- If the user says "higher protein", improve meals toward protein-focused options
-- If the user says "reduce cooking time", prefer faster meals and lower-friction prep
-- If the user says "make weekdays lighter", shift flexible items away from weekdays when reasonable
-- If the user says "more variety", diversify meals without breaking restrictions
-- If the user says "healthier", lean toward balanced realistic meals, not extreme diet meals
-- If the user says "kid-friendly", choose simpler, broadly appealing meals
-- If the user says "busy week", simplify wherever possible but keep core obligations
-- If the user says "cheaper", prefer affordable proteins and pantry-friendly meals
-- If the user says "cut grocery budget in half", aggressively simplify meals and choose lower-cost staples while keeping the plan usable
-- If the request is vague, make the smallest useful change that matches the intent
-
-Task handling rules:
-- Keep explicit appointments and fixed commitments
-- Flexible tasks may be shifted to nearby days if the user's request implies reducing overload
-- Try not to overload any single day unless required by explicit commitments
-- Aim for 2-3 core tasks per day when possible, but do not lose explicit user tasks
-
-Meal handling rules:
-- If a day becomes lighter, meals can also become simpler
-- If the user requests convenience, use faster meals, leftovers, repeats, or easier lunches when appropriate
-- If the user requests cheap meals, prefer simple staples like rice bowls, pasta, burrito bowls, sandwiches, eggs, beans, ground turkey, tuna, oats, potatoes, frozen veggies, and similar practical budget foods
-
-Grocery grouping rules:
-- Group items into exactly these sections: produce, protein, dairy, pantry, frozen, other
-- Always include all six section keys even if empty
-- Consolidate duplicates
-- Remove obvious redundancy
-- Use the clearest single item name when similar items overlap
-
-Preference memory rules:
-- Saved preferences should influence every edit
-- Keep the plan aligned with saved meal priorities like quick, cheap, high protein, or kid-friendly when relevant
-- If a saved food dislike conflicts with the current plan, edits should move further away from that ingredient, not toward it
-      `.trim()
+Calendar context:
+${calendarContextToPrompt(normalizedCalendarContext)}
+`.trim()
     },
     {
       role: "user",
-      content: `
-Brain dump:
-${brainDump}
-
-Saved preference memory:
-${preferencesToPrompt(preferences)}
-
-Current plan:
-${JSON.stringify(existingPlan, null, 2)}
-
-User request:
-${editInstruction}
-      `.trim()
+      content: `Brain dump:\n${brainDump}\n\nCurrent plan:\n${JSON.stringify(existingPlan)}\n\nEdit: ${editInstruction}`
     }
   ];
 }
@@ -347,153 +364,81 @@ function buildMealDetailsMessages(brainDump, existingPlan, mealName, dayName, pr
     {
       role: "system",
       content: `
-You are creating a simple meal detail card for Life Manager.
+Create a meal detail card.
 
-Return ONLY valid JSON in this exact format:
-{
-  "title": "",
-  "description": "",
-  "prepTime": "",
-  "ingredients": [],
-  "steps": []
-}
+Return ONLY JSON:
+{"title":"","description":"","prepTime":"","ingredients":[],"steps":[]}
 
 Rules:
-- Only JSON
-- No extra text
-- Description must be one short sentence
-- Keep this practical and realistic
-- This is not a blog recipe
-- Prep time should be short and realistic
-- Ingredients should be concise and useful
-- Steps should be 3 to 5 simple steps
-- Respect exact dislikes and restrictions from both the brain dump and saved preference memory
-- Never output a broken meal
-- If the named meal includes a restricted core ingredient, reinterpret it as the nearest complete allowed alternative
-- If the meal is eating out or social, still provide useful output:
-  - short description
-  - minimal ingredients if appropriate
-  - simple steps like what to order or how to prep
-- If saved preference memory says quick, cheap, high protein, or kid-friendly, lean in that direction when it still fits the meal
-      `.trim()
+- Description: 1 short sentence
+- Prep time realistic
+- 3-5 simple steps
+- Keep it practical, not blog-style
+- Respect dislikes from brain dump AND preferences
+- If a restricted core ingredient is involved, replace with a complete alternative
+- If the meal is eating out, social, or takeout, still make it useful and practical
+
+Saved preferences:
+${preferencesToPrompt(preferences)}
+`.trim()
     },
     {
       role: "user",
-      content: `
-Brain dump:
-${brainDump}
-
-Saved preference memory:
-${preferencesToPrompt(preferences)}
-
-Current weekly plan:
-${JSON.stringify(existingPlan, null, 2)}
-
-Day:
-${dayName}
-
-Meal:
-${mealName}
-      `.trim()
+      content: `Brain dump:\n${brainDump}\n\nPlan:\n${JSON.stringify(existingPlan)}\n\nDay: ${dayName}\nMeal: ${mealName}`
     }
   ];
 }
 
-function buildMealTagsMessages(brainDump, existingPlan, preferences) {
+function buildMealTagsMessages(brainDump, existingPlan, mealName, dayName, preferences) {
   return [
     {
       role: "system",
       content: `
-You are assigning helpful tags to meals in a weekly planning app called Life Manager.
+Classify a meal.
 
-Return ONLY valid JSON in this exact format:
-{
-  "monday": {
-    "Meal Name": ["quick", "cheap"]
-  },
-  "tuesday": {
-    "Meal Name": ["high protein"]
-  },
-  "wednesday": {},
-  "thursday": {},
-  "friday": {},
-  "saturday": {},
-  "sunday": {}
-}
+Return ONLY JSON:
+{"tags":[]}
+
+Allowed tags:
+- quick
+- cheap
+- high protein
+- leftovers
+- kid-friendly
 
 Rules:
-- Only JSON
-- No extra text
-- Use exactly these days as top-level keys: monday, tuesday, wednesday, thursday, friday, saturday, sunday
-- For each meal in the plan, return that exact meal name as a key under its day
-- Values must be arrays of short tags
-- Allowed tags are only:
-  - "quick"
-  - "cheap"
-  - "high protein"
-  - "leftovers"
-  - "kid-friendly"
-- Use 0 to 3 tags per meal
-- Only assign a tag when it is reasonably justified
-- Respect the brain dump, saved preferences, and the actual meal wording
-- Do not invent meals
-- Do not rewrite meal names
-- If a meal sounds like restaurant or social dining, you may still tag it if appropriate
-- If a meal seems simple and low-effort, tag it as quick
-- If a meal seems budget-friendly or based on staples, tag it as cheap
-- If a meal has a strong protein focus, tag it as high protein
-- If a meal is clearly repeatable or likely reused, tag it as leftovers
-- If a meal sounds broadly simple and family friendly, tag it as kid-friendly
-      `.trim()
+- Max 3 tags
+- Only include tags that genuinely fit
+- Do not over-tag
+
+Saved preferences:
+${preferencesToPrompt(preferences)}
+`.trim()
     },
     {
       role: "user",
-      content: `
-Brain dump:
-${brainDump}
-
-Saved preference memory:
-${preferencesToPrompt(preferences)}
-
-Current weekly plan:
-${JSON.stringify(existingPlan, null, 2)}
-      `.trim()
+      content: `Brain dump:\n${brainDump}\n\nPlan:\n${JSON.stringify(existingPlan)}\n\nDay: ${dayName}\nMeal: ${mealName}`
     }
   ];
 }
 
 function normalizeMealDetails(details, mealName) {
   return {
-    title: typeof details?.title === "string" && details.title.trim() ? details.title.trim() : mealName,
-    description: typeof details?.description === "string" ? details.description.trim() : "",
-    prepTime: typeof details?.prepTime === "string" ? details.prepTime.trim() : "",
+    title: safeTrimmedString(details?.title) || mealName,
+    description: safeTrimmedString(details?.description),
+    prepTime: safeTrimmedString(details?.prepTime),
     ingredients: safeArray(details?.ingredients),
     steps: safeArray(details?.steps)
   };
 }
 
-function normalizeMealTags(rawTags, plan) {
-  const normalizedPlan = normalizePlan(plan);
-  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-  const allowedTags = new Set(["quick", "cheap", "high protein", "leftovers", "kid-friendly"]);
-  const result = {};
+function normalizeMealTags(tagsPayload) {
+  const allowed = new Set(["quick", "cheap", "high protein", "leftovers", "kid-friendly"]);
 
-  for (const day of days) {
-    result[day] = {};
-    const meals = normalizedPlan[day]?.meals || [];
-    const rawDay = rawTags?.[day] && typeof rawTags[day] === "object" ? rawTags[day] : {};
-
-    for (const meal of meals) {
-      const tags = Array.isArray(rawDay[meal]) ? rawDay[meal] : [];
-      result[day][meal] = tags
-        .filter(tag => typeof tag === "string")
-        .map(tag => tag.trim())
-        .filter(tag => allowedTags.has(tag))
-        .slice(0, 3);
-    }
-  }
-
-  return result;
+  return safeArray(tagsPayload?.tags)
+    .map((tag) => tag.trim().toLowerCase())
+    .filter((tag) => allowed.has(tag))
+    .slice(0, 3);
 }
 
 export default async function handler(req, res) {
@@ -502,35 +447,35 @@ export default async function handler(req, res) {
   }
 
   if (!OPENROUTER_API_KEY) {
-    return res.status(500).json({
-      error: "Missing OPENROUTER_API_KEY",
-      fallback: {
-        ...EMPTY_PLAN,
-        isFallback: true
-      }
-    });
+    return res.status(500).json({ error: "Missing OPENROUTER_API_KEY" });
   }
 
   try {
     const {
-      mode = "generate",
-      brainDump = "",
-      existingPlan = null,
-      editInstruction = "",
-      mealName = "",
-      dayName = "",
-      preferences = {}
+      mode,
+      brainDump,
+      existingPlan,
+      editInstruction,
+      mealName,
+      dayName,
+      preferences,
+      calendarContext
     } = req.body || {};
 
-    if (!brainDump || typeof brainDump !== "string" || !brainDump.trim()) {
-      return res.status(400).json({ error: "brainDump is required" });
+    if (!brainDump || !brainDump.trim()) {
+      return res.status(400).json({ error: "brainDump required" });
     }
 
     const normalizedPreferences = normalizePreferences(preferences);
+    const normalizedCalendarContext = normalizeCalendarContext(calendarContext);
 
     if (mode === "generate") {
       const generated = await callOpenRouter(
-        buildGenerateMessages(brainDump.trim(), normalizedPreferences)
+        buildGenerateMessages(
+          brainDump.trim(),
+          normalizedPreferences,
+          normalizedCalendarContext
+        )
       );
 
       return res.status(200).json({
@@ -540,12 +485,12 @@ export default async function handler(req, res) {
     }
 
     if (mode === "quickEdit") {
-      if (!existingPlan || typeof existingPlan !== "object") {
-        return res.status(400).json({ error: "existingPlan is required for quickEdit" });
+      if (!existingPlan) {
+        return res.status(400).json({ error: "existingPlan required" });
       }
 
-      if (!editInstruction || typeof editInstruction !== "string" || !editInstruction.trim()) {
-        return res.status(400).json({ error: "editInstruction is required for quickEdit" });
+      if (!editInstruction?.trim()) {
+        return res.status(400).json({ error: "editInstruction required" });
       }
 
       const updated = await callOpenRouter(
@@ -553,7 +498,8 @@ export default async function handler(req, res) {
           brainDump.trim(),
           normalizePlan(existingPlan),
           editInstruction.trim(),
-          normalizedPreferences
+          normalizedPreferences,
+          normalizedCalendarContext
         )
       );
 
@@ -564,16 +510,12 @@ export default async function handler(req, res) {
     }
 
     if (mode === "mealDetails") {
-      if (!existingPlan || typeof existingPlan !== "object") {
-        return res.status(400).json({ error: "existingPlan is required for mealDetails" });
+      if (!existingPlan) {
+        return res.status(400).json({ error: "existingPlan required" });
       }
 
-      if (!mealName || typeof mealName !== "string" || !mealName.trim()) {
-        return res.status(400).json({ error: "mealName is required for mealDetails" });
-      }
-
-      if (!dayName || typeof dayName !== "string" || !dayName.trim()) {
-        return res.status(400).json({ error: "dayName is required for mealDetails" });
+      if (!mealName?.trim() || !dayName?.trim()) {
+        return res.status(400).json({ error: "mealName and dayName required" });
       }
 
       const details = await callOpenRouter(
@@ -593,22 +535,26 @@ export default async function handler(req, res) {
     }
 
     if (mode === "mealTags") {
-      if (!existingPlan || typeof existingPlan !== "object") {
-        return res.status(400).json({ error: "existingPlan is required for mealTags" });
+      if (!existingPlan) {
+        return res.status(400).json({ error: "existingPlan required" });
       }
 
-      const normalizedPlan = normalizePlan(existingPlan);
+      if (!mealName?.trim() || !dayName?.trim()) {
+        return res.status(400).json({ error: "mealName and dayName required" });
+      }
 
       const tags = await callOpenRouter(
         buildMealTagsMessages(
           brainDump.trim(),
-          normalizedPlan,
+          normalizePlan(existingPlan),
+          mealName.trim(),
+          dayName.trim(),
           normalizedPreferences
         )
       );
 
       return res.status(200).json({
-        tags: normalizeMealTags(tags, normalizedPlan),
+        tags: normalizeMealTags(tags),
         isFallback: false
       });
     }
@@ -616,13 +562,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Unsupported mode" });
   } catch (error) {
     console.error("Plan API error:", error);
-
-    return res.status(500).json({
-      error: error.message || "Failed to generate plan",
-      fallback: {
-        ...EMPTY_PLAN,
-        isFallback: true
-      }
-    });
+    return res.status(500).json({ error: error.message || "Failed to generate plan" });
   }
 }
