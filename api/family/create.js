@@ -1,17 +1,18 @@
+let families = global.families || []
+
 export default function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") return res.status(405).end()
+
+  const code = Math.random().toString(36).substring(2, 8)
+
+  const family = {
+    id: Date.now().toString(),
+    code,
+    members: []
   }
 
-  const token = req.headers.authorization;
+  families.push(family)
+  global.families = families
 
-  if (!token) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  return res.status(200).json({
-    id: `family-${Date.now()}`,
-    code: "ABC123",
-    members: [token.replace("-token", "")]
-  });
+  return res.json(family)
 }
