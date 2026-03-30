@@ -70,6 +70,56 @@ function normalizePlan(plan) {
   };
 }
 
+function normalizePreferences(preferences) {
+  return {
+    dislikedIngredients: safeArray(preferences?.dislikedIngredients),
+    preferredMealStyle:
+      typeof preferences?.preferredMealStyle === "string"
+        ? preferences.preferredMealStyle.trim()
+        : "",
+    prioritizeHighProtein: Boolean(preferences?.prioritizeHighProtein),
+    prioritizeCheapMeals: Boolean(preferences?.prioritizeCheapMeals),
+    prioritizeQuickMeals: Boolean(preferences?.prioritizeQuickMeals),
+    kidFriendlyMeals: Boolean(preferences?.kidFriendlyMeals)
+  };
+}
+
+function preferencesToPrompt(preferences) {
+  const p = normalizePreferences(preferences);
+
+  const lines = [];
+
+  if (p.dislikedIngredients.length) {
+    lines.push(`- Disliked or banned ingredients: ${p.dislikedIngredients.join(", ")}`);
+  }
+
+  if (p.preferredMealStyle) {
+    lines.push(`- Preferred meal style: ${p.preferredMealStyle}`);
+  }
+
+  if (p.prioritizeHighProtein) {
+    lines.push(`- Prioritize higher-protein meals`);
+  }
+
+  if (p.prioritizeCheapMeals) {
+    lines.push(`- Prioritize cheaper meals and grocery choices`);
+  }
+
+  if (p.prioritizeQuickMeals) {
+    lines.push(`- Prioritize quick low-friction meals`);
+  }
+
+  if (p.kidFriendlyMeals) {
+    lines.push(`- Prefer kid-friendly meals when possible`);
+  }
+
+  if (!lines.length) {
+    return "No saved preference memory.";
+  }
+
+  return lines.join("\n");
+}
+
 function extractJson(text) {
   if (!text || typeof text !== "string") return null;
 
@@ -122,7 +172,7 @@ async function callOpenRouter(messages) {
   return parsed;
 }
 
-function buildGenerateMessages(brainDump) {
+function buildGenerateMessages(brainDump, preferences) {
   return [
     {
       role: "system",
@@ -155,7 +205,7 @@ Rules:
 - Distribute tasks realistically across the week
 - Aim for 2-3 core tasks per day when possible, but do not drop explicit user tasks
 - Meals should be practical and realistic
-- Respect exact food dislikes and restrictions from the brain dump
+- Respect exact food dislikes and restrictions from both the brain dump and saved preference memory
 - Never leave a broken meal
 - If a disliked or restricted ingredient is a core part of a meal, replace the entire meal with a complete alternative
 - Grocery list must match meals
@@ -169,17 +219,29 @@ Grocery grouping rules:
 - Put uncategorized items into other
 - Keep grocery items concise and useful for real shopping
 
+Preference memory rules:
+- Saved preferences should influence planning every time
+- If a saved preference conflicts with a meal idea, choose a meal that fits the saved preference
+- Saved preference memory should shape meals, not invent unrelated tasks
+- If both the brain dump and saved preferences mention food constraints, follow both
+
 Keep wording concise and human
       `.trim()
     },
     {
       role: "user",
-      content: `Brain dump:\n${brainDump}`
+      content: `
+Brain dump:
+${brainDump}
+
+Saved preference memory:
+${preferencesToPrompt(preferences)}
+      `.trim()
     }
   ];
 }
 
-function buildQuickEditMessages(brainDump, existingPlan, editInstruction) {
+function buildQuickEditMessages(brainDump, existingPlan, editInstruction, preferences) {
   return [
     {
       role: "system",
@@ -216,7 +278,7 @@ Rules:
 - Broad optimization edits like "make this week easier" or "make weekdays lighter" should reorganize, simplify, or shift flexible tasks, not invent new ones
 - Meal-focused edits may change meals without adding unrelated tasks
 - Meals must stay realistic
-- Respect exact food dislikes and restrictions from the brain dump
+- Respect exact food dislikes and restrictions from both the brain dump and saved preference memory
 - Never leave a broken meal
 - If removing a core ingredient from a meal, replace the entire meal with a complete alternative
 - Grocery list must match meals
@@ -254,6 +316,11 @@ Grocery grouping rules:
 - Consolidate duplicates
 - Remove obvious redundancy
 - Use the clearest single item name when similar items overlap
+
+Preference memory rules:
+- Saved preferences should influence every edit
+- Keep the plan aligned with saved meal priorities like quick, cheap, high protein, or kid-friendly when relevant
+- If a saved food dislike conflicts with the current plan, edits should move further away from that ingredient, not toward it
       `.trim()
     },
     {
@@ -261,6 +328,9 @@ Grocery grouping rules:
       content: `
 Brain dump:
 ${brainDump}
+
+Saved preference memory:
+${preferencesToPrompt(preferences)}
 
 Current plan:
 ${JSON.stringify(existingPlan, null, 2)}
@@ -272,7 +342,7 @@ ${editInstruction}
   ];
 }
 
-function buildMealDetailsMessages(brainDump, existingPlan, mealName, dayName) {
+function buildMealDetailsMessages(brainDump, existingPlan, mealName, dayName, preferences) {
   return [
     {
       role: "system",
@@ -297,13 +367,14 @@ Rules:
 - Prep time should be short and realistic
 - Ingredients should be concise and useful
 - Steps should be 3 to 5 simple steps
-- Respect exact dislikes and restrictions from the brain dump
+- Respect exact dislikes and restrictions from both the brain dump and saved preference memory
 - Never output a broken meal
 - If the named meal includes a restricted core ingredient, reinterpret it as the nearest complete allowed alternative
 - If the meal is eating out or social, still provide useful output:
   - short description
   - minimal ingredients if appropriate
   - simple steps like what to order or how to prep
+- If saved preference memory says quick, cheap, high protein, or kid-friendly, lean in that direction when it still fits the meal
       `.trim()
     },
     {
@@ -311,6 +382,9 @@ Rules:
       content: `
 Brain dump:
 ${brainDump}
+
+Saved preference memory:
+${preferencesToPrompt(preferences)}
 
 Current weekly plan:
 ${JSON.stringify(existingPlan, null, 2)}
@@ -325,6 +399,69 @@ ${mealName}
   ];
 }
 
+function buildMealTagsMessages(brainDump, existingPlan, preferences) {
+  return [
+    {
+      role: "system",
+      content: `
+You are assigning helpful tags to meals in a weekly planning app called Life Manager.
+
+Return ONLY valid JSON in this exact format:
+{
+  "monday": {
+    "Meal Name": ["quick", "cheap"]
+  },
+  "tuesday": {
+    "Meal Name": ["high protein"]
+  },
+  "wednesday": {},
+  "thursday": {},
+  "friday": {},
+  "saturday": {},
+  "sunday": {}
+}
+
+Rules:
+- Only JSON
+- No extra text
+- Use exactly these days as top-level keys: monday, tuesday, wednesday, thursday, friday, saturday, sunday
+- For each meal in the plan, return that exact meal name as a key under its day
+- Values must be arrays of short tags
+- Allowed tags are only:
+  - "quick"
+  - "cheap"
+  - "high protein"
+  - "leftovers"
+  - "kid-friendly"
+- Use 0 to 3 tags per meal
+- Only assign a tag when it is reasonably justified
+- Respect the brain dump, saved preferences, and the actual meal wording
+- Do not invent meals
+- Do not rewrite meal names
+- If a meal sounds like restaurant or social dining, you may still tag it if appropriate
+- If a meal seems simple and low-effort, tag it as quick
+- If a meal seems budget-friendly or based on staples, tag it as cheap
+- If a meal has a strong protein focus, tag it as high protein
+- If a meal is clearly repeatable or likely reused, tag it as leftovers
+- If a meal sounds broadly simple and family friendly, tag it as kid-friendly
+      `.trim()
+    },
+    {
+      role: "user",
+      content: `
+Brain dump:
+${brainDump}
+
+Saved preference memory:
+${preferencesToPrompt(preferences)}
+
+Current weekly plan:
+${JSON.stringify(existingPlan, null, 2)}
+      `.trim()
+    }
+  ];
+}
+
 function normalizeMealDetails(details, mealName) {
   return {
     title: typeof details?.title === "string" && details.title.trim() ? details.title.trim() : mealName,
@@ -333,6 +470,30 @@ function normalizeMealDetails(details, mealName) {
     ingredients: safeArray(details?.ingredients),
     steps: safeArray(details?.steps)
   };
+}
+
+function normalizeMealTags(rawTags, plan) {
+  const normalizedPlan = normalizePlan(plan);
+  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+  const allowedTags = new Set(["quick", "cheap", "high protein", "leftovers", "kid-friendly"]);
+  const result = {};
+
+  for (const day of days) {
+    result[day] = {};
+    const meals = normalizedPlan[day]?.meals || [];
+    const rawDay = rawTags?.[day] && typeof rawTags[day] === "object" ? rawTags[day] : {};
+
+    for (const meal of meals) {
+      const tags = Array.isArray(rawDay[meal]) ? rawDay[meal] : [];
+      result[day][meal] = tags
+        .filter(tag => typeof tag === "string")
+        .map(tag => tag.trim())
+        .filter(tag => allowedTags.has(tag))
+        .slice(0, 3);
+    }
+  }
+
+  return result;
 }
 
 export default async function handler(req, res) {
@@ -357,15 +518,20 @@ export default async function handler(req, res) {
       existingPlan = null,
       editInstruction = "",
       mealName = "",
-      dayName = ""
+      dayName = "",
+      preferences = {}
     } = req.body || {};
 
     if (!brainDump || typeof brainDump !== "string" || !brainDump.trim()) {
       return res.status(400).json({ error: "brainDump is required" });
     }
 
+    const normalizedPreferences = normalizePreferences(preferences);
+
     if (mode === "generate") {
-      const generated = await callOpenRouter(buildGenerateMessages(brainDump.trim()));
+      const generated = await callOpenRouter(
+        buildGenerateMessages(brainDump.trim(), normalizedPreferences)
+      );
 
       return res.status(200).json({
         ...normalizePlan(generated),
@@ -383,7 +549,12 @@ export default async function handler(req, res) {
       }
 
       const updated = await callOpenRouter(
-        buildQuickEditMessages(brainDump.trim(), normalizePlan(existingPlan), editInstruction.trim())
+        buildQuickEditMessages(
+          brainDump.trim(),
+          normalizePlan(existingPlan),
+          editInstruction.trim(),
+          normalizedPreferences
+        )
       );
 
       return res.status(200).json({
@@ -410,12 +581,34 @@ export default async function handler(req, res) {
           brainDump.trim(),
           normalizePlan(existingPlan),
           mealName.trim(),
-          dayName.trim()
+          dayName.trim(),
+          normalizedPreferences
         )
       );
 
       return res.status(200).json({
         ...normalizeMealDetails(details, mealName.trim()),
+        isFallback: false
+      });
+    }
+
+    if (mode === "mealTags") {
+      if (!existingPlan || typeof existingPlan !== "object") {
+        return res.status(400).json({ error: "existingPlan is required for mealTags" });
+      }
+
+      const normalizedPlan = normalizePlan(existingPlan);
+
+      const tags = await callOpenRouter(
+        buildMealTagsMessages(
+          brainDump.trim(),
+          normalizedPlan,
+          normalizedPreferences
+        )
+      );
+
+      return res.status(200).json({
+        tags: normalizeMealTags(tags, normalizedPlan),
         isFallback: false
       });
     }
