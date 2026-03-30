@@ -111,13 +111,16 @@ Return ONLY valid JSON in this exact format:
 }
 
 Rules:
-- No extra text
 - Only JSON
-- Extract all tasks from the brain dump
-- Spread tasks across the right days
+- No extra text
+- Extract all explicit tasks from the brain dump
+- Distribute tasks realistically across the week
+- Aim for 2-3 core tasks per day when possible, but do not drop explicit user tasks
 - Meals should be practical and realistic
-- Respect food dislikes and restrictions
-- Grocery list should match meals
+- Respect exact food dislikes and restrictions from the brain dump
+- Never leave a broken meal
+- If a disliked or restricted ingredient is a core part of a meal, replace the entire meal with a complete alternative
+- Grocery list must match meals
 - Keep wording concise and human
       `.trim()
     },
@@ -151,8 +154,11 @@ Rules:
 - Apply only what the user requested
 - Keep everything else the same
 - Do not randomly rewrite the whole plan
-- Do not drop tasks unless explicitly told
+- Do not drop explicit tasks unless the user clearly asks for that
 - Meals must stay realistic
+- Respect exact food dislikes and restrictions from the brain dump
+- Never leave a broken meal
+- If removing a core ingredient from a meal, replace the entire meal with a complete alternative
 - Grocery list must match meals
 - No extra text
       `.trim()
@@ -178,7 +184,7 @@ function buildMealDetailsMessages(brainDump, existingPlan, mealName, dayName) {
     {
       role: "system",
       content: `
-You are creating a simple meal detail card for a weekly planning app called Life Manager.
+You are creating a simple meal detail card for Life Manager.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -190,20 +196,21 @@ Return ONLY valid JSON in this exact format:
 }
 
 Rules:
-- No extra text
 - Only JSON
-- Keep this simple, practical, and realistic
-- This is NOT a long blog recipe
-- Description should be 1 short sentence
-- Prep time should be short and realistic like "15 min", "25 min", or "10 min prep + 20 min cook"
+- No extra text
+- Description must be one short sentence
+- Keep this practical and realistic
+- This is not a blog recipe
+- Prep time should be short and realistic
 - Ingredients should be concise and useful
 - Steps should be 3 to 5 simple steps
-- Respect any dislikes, restrictions, or preferences from the brain dump
-- If the meal sounds like eating out or a social meal, still make the output useful:
-  - description should reflect that
-  - ingredients can be minimal or even empty if not appropriate
-  - steps can explain what to order, prep, or plan
-- Make it feel like something a real person would actually use on a weeknight
+- Respect exact dislikes and restrictions from the brain dump
+- Never output a broken meal
+- If the named meal includes a restricted core ingredient, reinterpret it as the nearest complete allowed alternative
+- If the meal is eating out or social, still provide useful output:
+  - short description
+  - minimal ingredients if appropriate
+  - simple steps like what to order or how to prep
       `.trim()
     },
     {
@@ -265,7 +272,7 @@ export default async function handler(req, res) {
     }
 
     if (mode === "generate") {
-      const generated = await callOpenRouter(buildGenerateMessages(brainDump));
+      const generated = await callOpenRouter(buildGenerateMessages(brainDump.trim()));
 
       return res.status(200).json({
         ...normalizePlan(generated),
@@ -283,7 +290,7 @@ export default async function handler(req, res) {
       }
 
       const updated = await callOpenRouter(
-        buildQuickEditMessages(brainDump, normalizePlan(existingPlan), editInstruction)
+        buildQuickEditMessages(brainDump.trim(), normalizePlan(existingPlan), editInstruction.trim())
       );
 
       return res.status(200).json({
@@ -306,7 +313,12 @@ export default async function handler(req, res) {
       }
 
       const details = await callOpenRouter(
-        buildMealDetailsMessages(brainDump, normalizePlan(existingPlan), mealName.trim(), dayName.trim())
+        buildMealDetailsMessages(
+          brainDump.trim(),
+          normalizePlan(existingPlan),
+          mealName.trim(),
+          dayName.trim()
+        )
       );
 
       return res.status(200).json({
