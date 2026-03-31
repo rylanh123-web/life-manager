@@ -216,31 +216,6 @@
       else localStorage.removeItem("lm.plan");
     }
 
-    function normalizeFamilyPayload(data) {
-      if (!data) return null;
-      if (data.family) return data.family;
-      return data;
-    }
-
-    function getFamilyId() {
-      return state.family?.id || "";
-    }
-
-    function getFamilyCode() {
-      return state.family?.code || "N/A";
-    }
-
-    function formatMembers(members) {
-      if (!Array.isArray(members) || !members.length) return "";
-      return members
-        .map(member => {
-          const label = member.name || member.email || "Unknown";
-          const role = member.role || "member";
-          return `${label} (${role})`;
-        })
-        .join(", ");
-    }
-
     async function api(path, method = "GET", body) {
       const res = await fetch(path, {
         method,
@@ -264,6 +239,16 @@
       $("statusText").textContent = msg || "";
     }
 
+    function formatMembers(members) {
+      if (!Array.isArray(members) || !members.length) {
+        return "None yet"
+      }
+
+      return members
+        .map(member => `${member.name} (${member.role})`)
+        .join(", ")
+    }
+
     function renderAuthState() {
       const loggedIn = !!state.token;
 
@@ -274,8 +259,8 @@
       $("groceryCard").classList.toggle("hidden", !state.plan);
 
       if (state.family) {
-        const membersText = formatMembers(state.family.members);
-        $("familyInfo").textContent = `Family code: ${getFamilyCode()} | Members: ${membersText || "Loading..."}`;
+        $("familyInfo").textContent =
+          `Family code: ${state.family.code || "N/A"} | Members: ${formatMembers(state.family.members)}`;
       } else {
         $("familyInfo").textContent = "No family yet.";
       }
@@ -343,43 +328,29 @@
       return String(str).replaceAll("\\", "\\\\").replaceAll("'", "\\'");
     }
 
-    async function loadFamilyMembers() {
+    async function loadFamily() {
       try {
-        const familyId = getFamilyId();
-        if (!familyId || !state.token) return;
+        if (!state.token) return;
 
-        const data = await api(`/api/family/${familyId}`, "GET");
+        const user = await api("/api/user/me", "GET");
+        state.user = user || null;
+
+        if (!user?.family_id) {
+          state.family = null;
+          saveState();
+          renderAuthState();
+          return;
+        }
+
+        const data = await api(`/api/family/${user.family_id}`, "GET");
         state.family = {
-          ...state.family,
-          ...(data.family || {}),
+          ...data.family,
           members: data.members || []
         };
         saveState();
         renderAuthState();
       } catch (err) {
-        console.error("Failed to load family members:", err);
-      }
-    }
-
-    async function hydrateSession() {
-      try {
-        if (!state.token) return;
-
-        const data = await api("/api/user/me", "GET");
-        state.user = data.user || state.user || null;
-        state.family = normalizeFamilyPayload(data.family);
-        saveState();
-        renderAuthState();
-
-        if (state.family?.id) {
-          await loadFamilyMembers();
-        }
-      } catch (err) {
-        state.token = "";
-        state.user = null;
-        state.family = null;
-        saveState();
-        renderAuthState();
+        console.error("Failed to load family:", err);
       }
     }
 
@@ -391,14 +362,9 @@
         const data = await api("/api/auth/register", "POST", { email, password });
         state.token = data.token;
         state.user = data.user || null;
-        state.family = normalizeFamilyPayload(data.family);
         saveState();
         renderAuthState();
-
-        if (state.family?.id) {
-          await loadFamilyMembers();
-        }
-
+        await loadFamily();
         setStatus("Registered successfully.");
       } catch (err) {
         setStatus(err.message);
@@ -413,12 +379,9 @@
         const data = await api("/api/auth/login", "POST", { email, password });
         state.token = data.token;
         state.user = data.user || null;
-        state.family = normalizeFamilyPayload(data.family);
         saveState();
         renderAuthState();
-
-        await hydrateSession();
-
+        await loadFamily();
         setStatus("Logged in.");
       } catch (err) {
         setStatus(err.message);
@@ -429,14 +392,13 @@
       try {
         setStatus("Creating family...");
         const data = await api("/api/family/create", "POST");
-        state.family = normalizeFamilyPayload(data);
+        state.family = {
+          ...(data.family || data),
+          members: data.members || []
+        };
         saveState();
         renderAuthState();
-
-        if (state.family?.id) {
-          await loadFamilyMembers();
-        }
-
+        await loadFamily();
         setStatus("Family created.");
       } catch (err) {
         setStatus(err.message);
@@ -448,14 +410,13 @@
         setStatus("Joining family...");
         const code = $("familyCodeInput").value.trim();
         const data = await api("/api/family/join", "POST", { code });
-        state.family = normalizeFamilyPayload(data);
+        state.family = {
+          ...(data.family || data),
+          members: data.members || []
+        };
         saveState();
         renderAuthState();
-
-        if (state.family?.id) {
-          await loadFamilyMembers();
-        }
-
+        await loadFamily();
         setStatus("Joined family.");
       } catch (err) {
         setStatus(err.message);
@@ -549,7 +510,7 @@
 
     renderAuthState();
     renderPlan();
-    hydrateSession();
+    loadFamily();
   </script>
 </body>
 </html>
