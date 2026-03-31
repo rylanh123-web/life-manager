@@ -1,5 +1,4 @@
 import { supabase } from '../../lib/db.js'
-import { getAuthUser } from '../../lib/auth.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,15 +6,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const authUser = await getAuthUser(req)
     const { id } = req.query
 
     if (!id) {
       return res.status(400).json({ error: 'Family id is required' })
-    }
-
-    if (!authUser.family_id || authUser.family_id !== id) {
-      return res.status(403).json({ error: 'Forbidden' })
     }
 
     const { data: family, error: familyError } = await supabase
@@ -34,36 +28,47 @@ export default async function handler(req, res) {
 
     const { data: memberships, error: membersError } = await supabase
       .from('family_members')
-      .select(`
-        role,
-        users:user_id (
-          id,
-          name,
-          email
-        )
-      `)
+      .select('user_id, family_id, role')
       .eq('family_id', id)
 
     if (membersError) {
       return res.status(500).json({ error: membersError.message })
     }
 
-    const members = (memberships || [])
-      .filter(row => row.users)
-      .map(row => ({
-        id: row.users.id,
-        name: row.users.name,
-        email: row.users.email,
-        role: row.role
-      }))
+    const userIds = (memberships || []).map(row => row.user_id)
+
+    let users = []
+    if (userIds.length) {
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, email, name')
+        .in('id', userIds)
+
+      if (usersError) {
+        return res.status(500).json({ error: usersError.message })
+      }
+
+      users = usersData || []
+    }
+
+    const members = (memberships || []).map(row => {
+      const user = users.find(u => u.id === row.user_id)
+
+      return {
+        id: row.user_id,
+        name: user?.name || user?.email || 'Unknown',
+        email: user?.email || '',
+        role: row.role || 'member'
+      }
+    })
 
     return res.status(200).json({
       family,
       members
     })
   } catch (error) {
-    return res.status(401).json({
-      error: error.message || 'Unauthorized'
+    return res.status(500).json({
+      error: error.message || 'Failed to load family members'
     })
   }
 }
