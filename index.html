@@ -36,6 +36,17 @@ button.primary {
   background: #6cb2ff;
   color: black;
 }
+
+input, textarea {
+  width: 100%;
+  max-width: 600px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #11151c;
+  color: white;
+  box-sizing: border-box;
+}
 </style>
 </head>
 
@@ -65,7 +76,7 @@ button.primary {
   <div class="card">
     <h2>Turn chaos into a clear week</h2>
 
-    <textarea id="brainDump" style="width:100%; height:100px;"></textarea><br><br>
+    <textarea id="brainDump" style="height:100px;"></textarea><br><br>
 
     <button class="primary" onclick="generatePlan()">Generate Plan</button>
     <button onclick="quickEdit('Make dinners faster')">Make dinners faster</button>
@@ -94,128 +105,218 @@ function load(key) {
   return JSON.parse(localStorage.getItem(key));
 }
 
+function setStatus(message) {
+  document.getElementById("status").innerText = message;
+}
+
 function logout() {
   localStorage.clear();
   location.reload();
 }
 
 async function register() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  try {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
-  const res = await fetch("/api/auth/register", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ email, password })
-  });
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, password })
+    });
 
-  const data = await res.json();
-  localStorage.setItem("lm.token", data.token);
+    const data = await res.json();
 
-  init();
+    if (!res.ok) {
+      alert(data.error || "Registration failed");
+      return;
+    }
+
+    localStorage.setItem("lm.token", data.token);
+    await init();
+  } catch (err) {
+    console.error(err);
+    alert("Registration failed");
+  }
 }
 
 async function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  try {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
-  const res = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ email, password })
-  });
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, password })
+    });
 
-  const data = await res.json();
-  localStorage.setItem("lm.token", data.token);
+    const data = await res.json();
 
-  init();
+    if (!res.ok) {
+      alert(data.error || "Login failed");
+      return;
+    }
+
+    localStorage.setItem("lm.token", data.token);
+    await init();
+  } catch (err) {
+    console.error(err);
+    alert("Login failed");
+  }
 }
 
 async function createFamily() {
-  const res = await fetch("/api/family/create", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": localStorage.getItem("lm.token")
-    }
-  });
+  try {
+    const res = await fetch("/api/family/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": localStorage.getItem("lm.token")
+      }
+    });
 
-  const data = await res.json();
-  loadFamily();
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to create family");
+      return;
+    }
+
+    await loadFamily();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to create family");
+  }
 }
 
 async function joinFamily() {
-  const code = document.getElementById("joinCode").value;
+  try {
+    const code = document.getElementById("joinCode").value;
 
-  const res = await fetch("/api/family/join", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": localStorage.getItem("lm.token")
-    },
-    body: JSON.stringify({ code })
-  });
+    const res = await fetch("/api/family/join", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": localStorage.getItem("lm.token")
+      },
+      body: JSON.stringify({ code })
+    });
 
-  const data = await res.json();
-  loadFamily();
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to join family");
+      return;
+    }
+
+    await loadFamily();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to join family");
+  }
 }
 
 async function loadFamily() {
-  const token = localStorage.getItem("lm.token");
+  try {
+    const token = localStorage.getItem("lm.token");
 
-  const userRes = await fetch("/api/user/me", {
-    headers: { Authorization: token }
-  });
+    const userRes = await fetch("/api/user/me", {
+      headers: { Authorization: token }
+    });
 
-  const user = await userRes.json();
+    const user = await userRes.json();
 
-  if (!user.family_id) {
-    document.getElementById("familyInfo").innerText = "No family yet.";
-    return;
+    if (!userRes.ok) {
+      throw new Error(user.error || "Failed to load user");
+    }
+
+    if (!user.family_id) {
+      document.getElementById("familyInfo").innerText = "No family yet.";
+      return;
+    }
+
+    const famRes = await fetch(`/api/family/${user.family_id}`);
+    const data = await famRes.json();
+
+    if (!famRes.ok) {
+      throw new Error(data.error || "Failed to load family");
+    }
+
+    document.getElementById("familyInfo").innerText =
+      `Family code: ${data.family.code} | Members: ${data.members.map(m => m.email + " (" + m.role + ")").join(", ")}`;
+  } catch (err) {
+    console.error("Failed to load family:", err);
+    document.getElementById("familyInfo").innerText = "Failed to load family.";
   }
-
-  const famRes = await fetch(`/api/family/${user.family_id}`);
-  const data = await famRes.json();
-
-  document.getElementById("familyInfo").innerText =
-    `Family code: ${data.family.code} | Members: ${data.members.map(m => m.email + " (" + m.role + ")").join(", ")}`;
 }
 
 async function generatePlan() {
-  const brainDump = document.getElementById("brainDump").value;
+  try {
+    const brainDump = document.getElementById("brainDump").value;
 
-  const res = await fetch("/api/plan", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ mode: "generate", brainDump })
-  });
+    const res = await fetch("/api/plan", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ mode: "generate", brainDump })
+    });
 
-  const data = await res.json();
-  document.getElementById("status").innerText = "Plan generated";
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to generate plan");
+      return;
+    }
+
+    setStatus("Plan generated");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to generate plan");
+  }
 }
 
 async function quickEdit(edit) {
-  const res = await fetch("/api/plan", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      mode: "quickEdit",
-      editInstruction: edit
-    })
-  });
+  try {
+    const res = await fetch("/api/plan", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        mode: "quickEdit",
+        editInstruction: edit
+      })
+    });
 
-  document.getElementById("status").innerText = "Edited";
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Failed to edit plan");
+      return;
+    }
+
+    setStatus("Edited");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to edit plan");
+  }
 }
 
 async function exportGrocery() {
-  document.getElementById("status").innerText = "Export coming soon";
+  setStatus("Export coming soon");
 }
 
-function init() {
+async function init() {
   if (localStorage.getItem("lm.token")) {
     document.getElementById("auth").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    loadFamily();
+
+    try {
+      await loadFamily();
+    } catch (e) {
+      console.error("Failed to load family during init:", e);
+    }
+  } else {
+    document.getElementById("auth").classList.remove("hidden");
+    document.getElementById("app").classList.add("hidden");
   }
 }
 
