@@ -148,6 +148,21 @@ function getToken() {
   return localStorage.getItem("lm.token");
 }
 
+function getAuthHeaders(includeJson = false) {
+  const headers = {};
+
+  if (includeJson) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const token = getToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
 function logout() {
   localStorage.clear();
   location.reload();
@@ -209,10 +224,7 @@ async function createFamily() {
   try {
     const res = await fetch("/api/family/create", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": getToken()
-      }
+      headers: getAuthHeaders(true)
     });
 
     const data = await res.json();
@@ -236,10 +248,7 @@ async function joinFamily() {
 
     const res = await fetch("/api/family/join", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": getToken()
-      },
+      headers: getAuthHeaders(true),
       body: JSON.stringify({ code })
     });
 
@@ -259,10 +268,8 @@ async function joinFamily() {
 }
 
 async function loadCurrentUser() {
-  const token = getToken();
-
   const userRes = await fetch("/api/user/me", {
-    headers: { Authorization: token }
+    headers: getAuthHeaders()
   });
 
   const user = await userRes.json();
@@ -436,7 +443,7 @@ async function loadVotes() {
     }
 
     const res = await fetch(`/api/votes?family_id=${user.family_id}&week_start=${getWeekStart()}`, {
-      headers: { Authorization: getToken() }
+      headers: getAuthHeaders()
     });
 
     const data = await res.json();
@@ -445,7 +452,7 @@ async function loadVotes() {
       state.votes = data.votes || [];
       renderPlan();
     } else {
-      console.error("Failed to load votes:", data.error);
+      console.error("Failed to load votes:", data);
     }
   } catch (e) {
     console.error("loadVotes failed", e);
@@ -463,10 +470,7 @@ async function voteMeal(day, meal) {
 
     const res = await fetch("/api/votes", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": getToken()
-      },
+      headers: getAuthHeaders(true),
       body: JSON.stringify({
         family_id: user.family_id,
         week_start: getWeekStart(),
@@ -480,6 +484,7 @@ async function voteMeal(day, meal) {
     if (res.ok) {
       await loadVotes();
     } else {
+      console.error("Vote API error:", data);
       alert(data.error || "Vote failed");
     }
   } catch (e) {
