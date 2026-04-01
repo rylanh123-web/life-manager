@@ -47,6 +47,31 @@ input, textarea {
   color: white;
   box-sizing: border-box;
 }
+
+.meal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #2a2f3a;
+  flex-wrap: wrap;
+}
+
+.meal-name {
+  font-weight: bold;
+}
+
+.day-card {
+  background: #11151c;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.vote-btn {
+  white-space: nowrap;
+}
 </style>
 </head>
 
@@ -76,7 +101,7 @@ input, textarea {
   <div class="card">
     <h2>Turn chaos into a clear week</h2>
 
-    <textarea id="brainDump" style="height:100px;"></textarea><br><br>
+    <textarea id="brainDump" style="height:100px;" placeholder="Dump everything here..."></textarea><br><br>
 
     <button class="primary" onclick="generatePlan()">Generate Plan</button>
     <button onclick="quickEdit('Make dinners faster')">Make dinners faster</button>
@@ -92,10 +117,20 @@ input, textarea {
     <p id="status"></p>
   </div>
 
+  <div id="plan" class="card hidden">
+    <h2>Weekly Plan</h2>
+    <div id="planContent"></div>
+  </div>
+
 </div>
 
 <script>
 const API = "";
+
+let state = {
+  plan: null,
+  votes: []
+};
 
 function save(key, val) {
   localStorage.setItem(key, JSON.stringify(val));
@@ -107,6 +142,10 @@ function load(key) {
 
 function setStatus(message) {
   document.getElementById("status").innerText = message;
+}
+
+function getToken() {
+  return localStorage.getItem("lm.token");
 }
 
 function logout() {
@@ -172,7 +211,7 @@ async function createFamily() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": localStorage.getItem("lm.token")
+        "Authorization": getToken()
       }
     });
 
@@ -184,6 +223,7 @@ async function createFamily() {
     }
 
     await loadFamily();
+    await loadVotes();
   } catch (err) {
     console.error(err);
     alert("Failed to create family");
@@ -198,7 +238,7 @@ async function joinFamily() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": localStorage.getItem("lm.token")
+        "Authorization": getToken()
       },
       body: JSON.stringify({ code })
     });
@@ -211,29 +251,36 @@ async function joinFamily() {
     }
 
     await loadFamily();
+    await loadVotes();
   } catch (err) {
     console.error(err);
     alert("Failed to join family");
   }
 }
 
+async function loadCurrentUser() {
+  const token = getToken();
+
+  const userRes = await fetch("/api/user/me", {
+    headers: { Authorization: token }
+  });
+
+  const user = await userRes.json();
+
+  if (!userRes.ok) {
+    throw new Error(user.error || "Failed to load user");
+  }
+
+  return user;
+}
+
 async function loadFamily() {
   try {
-    const token = localStorage.getItem("lm.token");
-
-    const userRes = await fetch("/api/user/me", {
-      headers: { Authorization: token }
-    });
-
-    const user = await userRes.json();
-
-    if (!userRes.ok) {
-      throw new Error(user.error || "Failed to load user");
-    }
+    const user = await loadCurrentUser();
 
     if (!user.family_id) {
       document.getElementById("familyInfo").innerText = "No family yet.";
-      return;
+      return user;
     }
 
     const famRes = await fetch(`/api/family/${user.family_id}`);
@@ -245,9 +292,12 @@ async function loadFamily() {
 
     document.getElementById("familyInfo").innerText =
       `Family code: ${data.family.code} | Members: ${data.members.map(m => m.email + " (" + m.role + ")").join(", ")}`;
+
+    return user;
   } catch (err) {
     console.error("Failed to load family:", err);
     document.getElementById("familyInfo").innerText = "Failed to load family.";
+    return null;
   }
 }
 
@@ -268,6 +318,10 @@ async function generatePlan() {
       return;
     }
 
+    state.plan = data.plan || data;
+    renderPlan();
+    await loadVotes();
+
     setStatus("Plan generated");
   } catch (err) {
     console.error(err);
@@ -277,11 +331,20 @@ async function generatePlan() {
 
 async function quickEdit(edit) {
   try {
+    if (!state.plan) {
+      alert("Generate a plan first");
+      return;
+    }
+
+    const brainDump = document.getElementById("brainDump").value;
+
     const res = await fetch("/api/plan", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         mode: "quickEdit",
+        brainDump,
+        existingPlan: state.plan,
         editInstruction: edit
       })
     });
@@ -293,6 +356,8 @@ async function quickEdit(edit) {
       return;
     }
 
+    state.plan = data.plan || data;
+    renderPlan();
     setStatus("Edited");
   } catch (err) {
     console.error(err);
@@ -304,15 +369,135 @@ async function exportGrocery() {
   setStatus("Export coming soon");
 }
 
+function voteCount(day, meal) {
+  return (state.votes || []).filter(v => v.day === day && v.meal === meal).length;
+}
+
+function renderPlan() {
+  const planWrap = document.getElementById("plan");
+  const el = document.getElementById("planContent");
+
+  el.innerHTML = "";
+
+  if (!state.plan) {
+    planWrap.classList.add("hidden");
+    return;
+  }
+
+  planWrap.classList.remove("hidden");
+
+  Object.entries(state.plan).forEach(([day, val]) => {
+    if (day === "groceryList") return;
+    if (!val || !Array.isArray(val.meals)) return;
+
+    const div = document.createElement("div");
+    div.className = "day-card";
+    div.innerHTML = `<h3>${day}</h3>`;
+
+    val.meals.forEach(mealName => {
+      const count = voteCount(day, mealName);
+
+      const row = document.createElement("div");
+      row.className = "meal-row";
+
+      row.innerHTML = `
+        <span class="meal-name">${mealName}</span>
+        <button class="vote-btn" onclick="voteMeal('${escapeSingleQuotes(day)}','${escapeSingleQuotes(mealName)}')">👍 ${count}</button>
+      `;
+
+      div.appendChild(row);
+    });
+
+    el.appendChild(div);
+  });
+}
+
+function escapeSingleQuotes(str) {
+  return String(str).replace(/'/g, "\\'");
+}
+
+function getWeekStart() {
+  const now = new Date();
+  const currentDay = now.getDay();
+  const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+  const monday = new Date(now);
+  monday.setDate(diff);
+  return monday.toISOString().split('T')[0];
+}
+
+async function loadVotes() {
+  try {
+    const user = await loadCurrentUser();
+
+    if (!user || !user.family_id) {
+      state.votes = [];
+      renderPlan();
+      return;
+    }
+
+    const res = await fetch(`/api/votes?family_id=${user.family_id}&week_start=${getWeekStart()}`, {
+      headers: { Authorization: getToken() }
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      state.votes = data.votes || [];
+      renderPlan();
+    } else {
+      console.error("Failed to load votes:", data.error);
+    }
+  } catch (e) {
+    console.error("loadVotes failed", e);
+  }
+}
+
+async function voteMeal(day, meal) {
+  try {
+    const user = await loadCurrentUser();
+
+    if (!user.family_id) {
+      alert("Join a family first");
+      return;
+    }
+
+    const res = await fetch("/api/votes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": getToken()
+      },
+      body: JSON.stringify({
+        family_id: user.family_id,
+        week_start: getWeekStart(),
+        day,
+        meal
+      })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      await loadVotes();
+    } else {
+      alert(data.error || "Vote failed");
+    }
+  } catch (e) {
+    console.error("vote failed", e);
+    alert("Vote failed");
+  }
+}
+
 async function init() {
-  if (localStorage.getItem("lm.token")) {
+  if (getToken()) {
     document.getElementById("auth").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
 
     try {
       await loadFamily();
+      await loadVotes();
     } catch (e) {
-      console.error("Failed to load family during init:", e);
+      console.error("Init error:", e);
     }
   } else {
     document.getElementById("auth").classList.remove("hidden");
