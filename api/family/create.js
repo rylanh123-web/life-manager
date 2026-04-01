@@ -1,9 +1,5 @@
 import { supabase } from '../../lib/db.js'
-
-function getUserIdFromAuthHeader(authHeader) {
-  if (!authHeader) return null
-  return authHeader.replace(/^demo-/, '').trim()
-}
+import { getAuthUser } from '../../lib/auth.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -11,12 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const authHeader = req.headers.authorization
-    const userId = getUserIdFromAuthHeader(authHeader)
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+    const authUser = await getAuthUser(req)
 
     const code = Math.random().toString(36).substring(2, 8)
 
@@ -25,7 +16,7 @@ export default async function handler(req, res) {
       .insert({
         code,
         name: 'My Family',
-        admin_id: userId
+        admin_id: authUser.id
       })
       .select()
       .single()
@@ -38,7 +29,7 @@ export default async function handler(req, res) {
       .from('family_members')
       .insert({
         family_id: family.id,
-        user_id: userId,
+        user_id: authUser.id,
         role: 'admin'
       })
 
@@ -51,17 +42,17 @@ export default async function handler(req, res) {
       .update({
         family_id: family.id
       })
-      .eq('id', userId)
+      .eq('id', authUser.id)
 
     if (userError) {
       return res.status(500).json({ error: userError.message })
     }
 
     return res.json({
-      ...family,
+      family,
       members: []
     })
   } catch (err) {
-    return res.status(500).json({ error: err.message })
+    return res.status(401).json({ error: err.message })
   }
 }
