@@ -1,128 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Life Manager</title>
-
-<style>
-body {
-  font-family: Arial;
-  background: #0f1115;
-  color: white;
-  padding: 20px;
-}
-
-.card {
-  background: #1a1d24;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-
-.hidden { display: none; }
-
-button {
-  margin: 5px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: none;
-  background: #2a2f3a;
-  color: white;
-  cursor: pointer;
-}
-
-button.primary {
-  background: #6cb2ff;
-  color: black;
-}
-
-input, textarea {
-  width: 100%;
-  max-width: 600px;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #333;
-  background: #11151c;
-  color: white;
-  box-sizing: border-box;
-}
-
-.meal-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid #2a2f3a;
-  flex-wrap: wrap;
-}
-
-.meal-name {
-  font-weight: bold;
-}
-
-.day-card {
-  background: #11151c;
-  padding: 16px;
-  border-radius: 10px;
-  margin-bottom: 16px;
-}
-
-.vote-btn {
-  white-space: nowrap;
-}
-</style>
-</head>
-
-<body>
-
-<div id="auth" class="card">
-  <h2>Login / Register</h2>
-  <input id="email" placeholder="email"><br><br>
-  <input id="password" placeholder="password" type="password"><br><br>
-  <button onclick="login()">Login</button>
-  <button onclick="register()">Register</button>
-</div>
-
-<div id="app" class="hidden">
-
-  <div class="card">
-    <h2>Family</h2>
-
-    <button onclick="createFamily()">Create Family</button>
-    <input id="joinCode" placeholder="Join code">
-    <button onclick="joinFamily()">Join Family</button>
-    <button onclick="logout()">Logout</button>
-
-    <p id="familyInfo">No family yet.</p>
-  </div>
-
-  <div class="card">
-    <h2>Turn chaos into a clear week</h2>
-
-    <textarea id="brainDump" style="height:100px;" placeholder="Dump everything here..."></textarea><br><br>
-
-    <button class="primary" onclick="generatePlan()">Generate Plan</button>
-    <button onclick="quickEdit('Make dinners faster')">Make dinners faster</button>
-    <button onclick="quickEdit('Make meals cheaper')">Make meals cheaper</button>
-    <button onclick="quickEdit('Add more protein')">Add more protein</button>
-
-    <br><br>
-
-    <input id="customEdit" placeholder="Custom edit">
-    <button onclick="quickEdit(document.getElementById('customEdit').value)">Apply Edit</button>
-    <button onclick="exportGrocery()">Export Grocery</button>
-
-    <p id="status"></p>
-  </div>
-
-  <div id="plan" class="card hidden">
-    <h2>Weekly Plan</h2>
-    <div id="planContent"></div>
-  </div>
-
-</div>
+<!-- ONLY showing the part we are changing to keep it clean -->
 
 <script>
 const API = "";
@@ -131,18 +7,6 @@ let state = {
   plan: null,
   votes: []
 };
-
-function save(key, val) {
-  localStorage.setItem(key, JSON.stringify(val));
-}
-
-function load(key) {
-  return JSON.parse(localStorage.getItem(key));
-}
-
-function setStatus(message) {
-  document.getElementById("status").innerText = message;
-}
 
 function getToken() {
   return localStorage.getItem("lm.token");
@@ -163,305 +27,17 @@ function getAuthHeaders(includeJson = false) {
   return headers;
 }
 
-function logout() {
-  localStorage.clear();
-  location.reload();
-}
-
-async function register() {
-  try {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Registration failed");
-      return;
-    }
-
-    localStorage.setItem("lm.token", data.token);
-    await init();
-  } catch (err) {
-    console.error(err);
-    alert("Registration failed");
-  }
-}
-
-async function login() {
-  try {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Login failed");
-      return;
-    }
-
-    localStorage.setItem("lm.token", data.token);
-    await init();
-  } catch (err) {
-    console.error(err);
-    alert("Login failed");
-  }
-}
-
-async function createFamily() {
-  try {
-    const res = await fetch("/api/family/create", {
-      method: "POST",
-      headers: getAuthHeaders(true)
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to create family");
-      return;
-    }
-
-    await loadFamily();
-    await loadVotes();
-  } catch (err) {
-    console.error(err);
-    alert("Failed to create family");
-  }
-}
-
-async function joinFamily() {
-  try {
-    const code = document.getElementById("joinCode").value;
-
-    const res = await fetch("/api/family/join", {
-      method: "POST",
-      headers: getAuthHeaders(true),
-      body: JSON.stringify({ code })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to join family");
-      return;
-    }
-
-    await loadFamily();
-    await loadVotes();
-  } catch (err) {
-    console.error(err);
-    alert("Failed to join family");
-  }
-}
-
-async function loadCurrentUser() {
-  const userRes = await fetch("/api/user/me", {
-    headers: getAuthHeaders()
-  });
-
-  const user = await userRes.json();
-
-  if (!userRes.ok) {
-    throw new Error(user.error || "Failed to load user");
-  }
-
-  return user;
-}
-
-async function loadFamily() {
-  try {
-    const user = await loadCurrentUser();
-
-    if (!user.family_id) {
-      document.getElementById("familyInfo").innerText = "No family yet.";
-      return user;
-    }
-
-    const famRes = await fetch(`/api/family/${user.family_id}`);
-    const data = await famRes.json();
-
-    if (!famRes.ok) {
-      throw new Error(data.error || "Failed to load family");
-    }
-
-    document.getElementById("familyInfo").innerText =
-      `Family code: ${data.family.code} | Members: ${data.members.map(m => m.email + " (" + m.role + ")").join(", ")}`;
-
-    return user;
-  } catch (err) {
-    console.error("Failed to load family:", err);
-    document.getElementById("familyInfo").innerText = "Failed to load family.";
-    return null;
-  }
-}
-
-async function generatePlan() {
-  try {
-    const brainDump = document.getElementById("brainDump").value;
-
-    const res = await fetch("/api/plan", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ mode: "generate", brainDump })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to generate plan");
-      return;
-    }
-
-    state.plan = data.plan || data;
-    renderPlan();
-    await loadVotes();
-
-    setStatus("Plan generated");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to generate plan");
-  }
-}
-
-async function quickEdit(edit) {
-  try {
-    if (!state.plan) {
-      alert("Generate a plan first");
-      return;
-    }
-
-    const brainDump = document.getElementById("brainDump").value;
-
-    const res = await fetch("/api/plan", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        mode: "quickEdit",
-        brainDump,
-        existingPlan: state.plan,
-        editInstruction: edit
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Failed to edit plan");
-      return;
-    }
-
-    state.plan = data.plan || data;
-    renderPlan();
-    setStatus("Edited");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to edit plan");
-  }
-}
-
-async function exportGrocery() {
-  setStatus("Export coming soon");
-}
-
-function voteCount(day, meal) {
-  return (state.votes || []).filter(v => v.day === day && v.meal === meal).length;
-}
-
-function renderPlan() {
-  const planWrap = document.getElementById("plan");
-  const el = document.getElementById("planContent");
-
-  el.innerHTML = "";
-
-  if (!state.plan) {
-    planWrap.classList.add("hidden");
-    return;
-  }
-
-  planWrap.classList.remove("hidden");
-
-  Object.entries(state.plan).forEach(([day, val]) => {
-    if (day === "groceryList") return;
-    if (!val || !Array.isArray(val.meals)) return;
-
-    const div = document.createElement("div");
-    div.className = "day-card";
-    div.innerHTML = `<h3>${day}</h3>`;
-
-    val.meals.forEach(mealName => {
-      const count = voteCount(day, mealName);
-
-      const row = document.createElement("div");
-      row.className = "meal-row";
-
-      row.innerHTML = `
-        <span class="meal-name">${mealName}</span>
-        <button class="vote-btn" onclick="voteMeal('${escapeSingleQuotes(day)}','${escapeSingleQuotes(mealName)}')">👍 ${count}</button>
-      `;
-
-      div.appendChild(row);
-    });
-
-    el.appendChild(div);
-  });
-}
-
-function escapeSingleQuotes(str) {
-  return String(str).replace(/'/g, "\\'");
-}
-
-function getWeekStart() {
-  const now = new Date();
-  const currentDay = now.getDay();
-  const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
-  const monday = new Date(now);
-  monday.setDate(diff);
-  return monday.toISOString().split('T')[0];
-}
-
-async function loadVotes() {
-  try {
-    const user = await loadCurrentUser();
-
-    if (!user || !user.family_id) {
-      state.votes = [];
-      renderPlan();
-      return;
-    }
-
-    const res = await fetch(`/api/votes?family_id=${user.family_id}&week_start=${getWeekStart()}`, {
-      headers: getAuthHeaders()
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      state.votes = data.votes || [];
-      renderPlan();
-    } else {
-      console.error("Failed to load votes:", data);
-    }
-  } catch (e) {
-    console.error("loadVotes failed", e);
-  }
-}
+/* =========================
+   🔥 CRITICAL FIX HERE
+========================= */
 
 async function voteMeal(day, meal) {
   try {
-    const user = await loadCurrentUser();
+    const userRes = await fetch("/api/user/me", {
+      headers: getAuthHeaders()
+    });
+
+    const user = await userRes.json();
 
     if (!user.family_id) {
       alert("Join a family first");
@@ -481,37 +57,20 @@ async function voteMeal(day, meal) {
 
     const data = await res.json();
 
+    console.log("VOTE RESPONSE:", data); // 👈 IMPORTANT
+
     if (res.ok) {
       await loadVotes();
     } else {
-      console.error("Vote API error:", data);
-      alert(data.error || "Vote failed");
+      alert(
+        "Vote failed:\n\n" +
+        JSON.stringify(data, null, 2)
+      );
     }
+
   } catch (e) {
     console.error("vote failed", e);
-    alert("Vote failed");
+    alert("Vote failed:\n\n" + e.message);
   }
 }
-
-async function init() {
-  if (getToken()) {
-    document.getElementById("auth").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-
-    try {
-      await loadFamily();
-      await loadVotes();
-    } catch (e) {
-      console.error("Init error:", e);
-    }
-  } else {
-    document.getElementById("auth").classList.remove("hidden");
-    document.getElementById("app").classList.add("hidden");
-  }
-}
-
-init();
 </script>
-
-</body>
-</html>
