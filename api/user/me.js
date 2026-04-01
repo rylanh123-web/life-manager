@@ -1,13 +1,26 @@
 import { supabase } from '../../lib/db.js'
 
+function getTokenFromReq(req) {
+  const authHeader = req.headers.authorization || req.headers.Authorization
+
+  if (!authHeader) {
+    throw new Error('Missing authorization header')
+  }
+
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim()
+  }
+
+  return authHeader.trim()
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    const authHeader = req.headers.authorization || ''
-    const userId = authHeader.trim()
+    const userId = getTokenFromReq(req)
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' })
